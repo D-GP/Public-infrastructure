@@ -1,0 +1,30 @@
+# Environment Files & Secrets
+.env
+firebaseServiceAccountKey.json
+
+# Python / Flask
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Node.js (if any frontend dependencies)
+node_modules/
+backend/node_modules/
+
+# Flutter / Dart (Mobile App)
+.dart_tool/
+build/
+.pub-cache/
+.pub/
+/mobile_app/public_asset_app/.dart_tool/
+/mobile_app/public_asset_app/build/
+*.iml
+*.ipr
+*.iws
+
+# IDEs & OS Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
