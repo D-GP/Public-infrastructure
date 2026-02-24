@@ -10,6 +10,7 @@ import 'profile_screen.dart';
 import 'notification_settings_screen.dart';
 import '../config.dart';
 import '../utils/language_manager.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class HomeScreen extends StatefulWidget {
   final String token;
@@ -343,14 +344,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Text(LanguageManager.instance.t('cancel')),
                         ),
                         TextButton(
-                          onPressed: () {
+                          onPressed: () async {
                             Navigator.pop(ctx); // Close dialog
                             Navigator.pop(context); // Close drawer
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => const LoginScreen(),
-                              ),
-                            );
+                            await const FlutterSecureStorage().deleteAll();
+                            if (context.mounted) {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (_) => const LoginScreen(),
+                                ),
+                              );
+                            }
                           },
                           child: Text(LanguageManager.instance.t('confirm')),
                         ),
