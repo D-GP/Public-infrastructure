@@ -16,6 +16,23 @@ import time
 from datetime import datetime, timedelta, timezone
 import uuid
 import pathlib
+import math
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    R = 6371.0 # Radius of the Earth in km
+    lat1_rad = math.radians(lat1)
+    lon1_rad = math.radians(lon1)
+    lat2_rad = math.radians(lat2)
+    lon2_rad = math.radians(lon2)
+
+    dlon = lon2_rad - lon1_rad
+    dlat = lat2_rad - lat1_rad
+
+    a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    distance = R * c
+    return distance
 
 # Import our custom modules
 from department_contacts import get_emails_for_department, get_response_time_for_department
@@ -770,6 +787,59 @@ def create_request():
                 'landmark': data.get('landmark'),
                 'lastReminderAt': None,
             }
+
+        # ---- NEW CLUSTERING LOGIC ----
+        try:
+            loc_text = request_data.get('location_text', '')
+            if loc_text and ',' in loc_text:
+                parts = loc_text.split(',')
+                if len(parts) >= 2:
+                    new_lat = float(parts[0].strip())
+                    new_lon = float(parts[1].strip())
+                    new_cat = request_data.get('category')
+                    
+                    # Search logic: fetch recent pending/in_progress from same category
+                    # We can't do an OR query easily in firestore for 'status', so we filter in Python
+                    existing_reports = db.collection('requests').where('category', '==', new_cat).stream()
+                    
+                    for doc in existing_reports:
+                        doc_data = doc.to_dict()
+                        if doc_data.get('status') not in ['pending', 'in_progress']:
+                            continue
+                            
+                        existing_loc = doc_data.get('location_text', '')
+                        if existing_loc and ',' in existing_loc:
+                            e_parts = existing_loc.split(',')
+                            if len(e_parts) >= 2:
+                                try:
+                                    e_lat = float(e_parts[0].strip())
+                                    e_lon = float(e_parts[1].strip())
+                                    dist = calculate_distance(new_lat, new_lon, e_lat, e_lon)
+                                    if dist <= 0.05:  # 50 meters
+                                        # Match found! Cluster them
+                                        existing_upvotes = doc_data.get('upvotes', 1)
+                                        updated_upvotes = existing_upvotes + 1
+                                        existing_reporters = doc_data.get('co_reporters', [])
+                                        reporter_email = request_data.get('reporter_email')
+                                        
+                                        if reporter_email and reporter_email not in existing_reporters:
+                                            existing_reporters.append(reporter_email)
+                                            
+                                        doc.reference.update({
+                                            'upvotes': updated_upvotes,
+                                            'co_reporters': existing_reporters
+                                        })
+                                        print(f"✓ Clustered with existing request: {doc.id}")
+                                        return jsonify({"msg": "Report clustered with identical existing issue", "id": doc.id}), 200
+                                except ValueError:
+                                    pass
+        except Exception as cluster_err:
+            print(f"Clustering error: {cluster_err}")
+            # Fallback to creating a new report if clustering fails
+        # ---- END CLUSTERING LOGIC ----
+
+        request_data['upvotes'] = 1
+        request_data['co_reporters'] = [request_data.get('reporter_email')] if request_data.get('reporter_email') else []
 
         # Save to Firestore
         doc_ref = db.collection('requests').add(request_data)
