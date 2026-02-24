@@ -8,8 +8,10 @@ Built with **Flutter**, the mobile app allows citizens to easily report issues b
 
 ### Key Features
 - **User Authentication**: Secure login and registration (JWT + Firebase).
+- **Auto-Logout Security**: Sessions are automatically cleared after 2 minutes of user inactivity.
 - **Report Generation**: Submit reports with precise location (GPS), images, and videos.
 - **Categorization**: Report issues to specific departments natively from the app.
+- **Smart Geographic Clustering**: Prevents duplicate reports by automatically grouping issues within a 50-meter radius under a single ticket with an upvote counter.
 - **Dashboard**: Track the status of submitted reports (Pending, In Progress, Resolved).
 - **Multi-language Support**: Supports English, Malayalam, and Hindi.
 - **Profile & Notifications**: Manage personal details and app notifications.
@@ -44,6 +46,8 @@ Built with **Python Flask**, the backend handles secure data processing, authent
 ### Key Features
 - **RESTful API**: Handles mobile app requests (reports, user profiles, stats).
 - **Firebase Integration**: Utilizes Firestore for database management and Firebase Admin for secure operations.
+- **Automated Escalation Matrix**: A scheduled Cron worker scans reports. If ignored for 15 days, local authorities receive an urgent warning. If ignored for 30 days, reports are auto-escalated to State Ministries with full history logging.
+- **Admin Delay System**: Admins can log valid reasons for delay on the dashboard, which pauses the automated escalation timers.
 - **Email Notifications**: Automated email routing to relevant department authorities using `Flask-Mail`.
 - **Media Handling**: Secure upload processing for images and videos.
 - **Authentication**: JWT-based access tokens with `bcrypt` password hashing.
