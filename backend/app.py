@@ -349,28 +349,7 @@ def send_escalation_email(report):
         print(f"❌ Escalation email failed: {e}")
         return False
 
-                    <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                        <h4 style="margin: 0 0 10px 0; color: #856404;">Reporter Information</h4>
-                        <p style="margin: 5px 0;"><strong>Name:</strong> {report.get('reporter_name', '')}</p>
-                        <p style="margin: 5px 0;"><strong>Email:</strong> {report.get('reporter_email', '')}</p>
-                    </div>
 
-                    <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                        <h4 style="margin: 0 0 10px 0; color: #0c5460;">Action Required</h4>
-                        <p>Please review this report and take appropriate action within {get_response_time_for_department(department_code)} hours.</p>
-                        <p><strong>Expected Response Time:</strong> {get_response_time_for_department(department_code)} hours</p>
-                    </div>
-
-                    <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
-                        <p style="color: #666; font-size: 12px;">
-                            This is an automated notification from the Public Assets Reporting System.<br>
-                            Please do not reply to this email directly.
-                        </p>
-                    </div>
-                </div>
-            </body>
-        </html>
-        """
 
         msg = Message(subject=subject, recipients=recipients, html=html_body)
 
