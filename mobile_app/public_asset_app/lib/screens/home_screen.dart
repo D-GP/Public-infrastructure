@@ -901,21 +901,22 @@ class _HomeScreenState extends State<HomeScreen> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _formatDate(dateString),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
                   Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
+                      Text(
+                        _formatDate(dateString),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
