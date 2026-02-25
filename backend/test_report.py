@@ -2,6 +2,7 @@ import requests
 import os
 
 # Configuration
+#TESTING BRANCH
 BASE_URL = 'http://localhost:3000'
 TEST_IMAGE_PATH = 'test_image.jpg'
 
