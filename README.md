@@ -51,6 +51,7 @@ Built with **Python Flask**, the backend handles secure data processing, authent
 - **Email Notifications**: Automated email routing to relevant department authorities using `Flask-Mail`.
 - **Media Handling**: Secure upload processing for images and videos.
 - **Authentication**: JWT-based access tokens with `bcrypt` password hashing.
+- **Anti-Spam & Moderation**: Rate Limiting (`Flask-Limiter`), queue-based admin moderation for new reports, and automatic explicit image detection via `google-cloud-vision` AI.
 
 ### Tech Stack / Dependencies
 - **Framework**: Flask

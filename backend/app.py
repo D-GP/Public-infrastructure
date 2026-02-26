@@ -38,12 +38,25 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 from department_contacts import get_emails_for_department, get_response_time_for_department
 from whatsapp_service import send_whatsapp_notification, send_whatsapp_reminder, send_whatsapp_escalation
 
+from google.cloud import vision
+import io
+
 # Load environment variables
 load_dotenv()
 
 from flask import Flask, request, jsonify, send_from_directory
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
+
+# Initialize Rate Limiter
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
 # JWT Configuration
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "your-super-secret-jwt-key-change-it")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
@@ -129,6 +142,36 @@ def handle_errors(f):
             print(f"Error in {f.__name__}: {str(e)}")
             return jsonify({"msg": str(e)}), 500
     return decorated_function
+
+# AI Image Moderation
+def analyze_image_safety(image_path):
+    """
+    Analyzes an image for explicit content (Violence, Adult, Racy, etc.)
+    using Google Cloud Vision API. Returns True if SAFE, False if EXPLICIT.
+    """
+    try:
+        # Check if we have firebase creds as an indicator that GCP is available
+        if db is None:
+            return True # In offline/dev mode, assume safe
+            
+        client = vision.ImageAnnotatorClient()
+        with io.open(image_path, 'rb') as image_file:
+            content = image_file.read()
+
+        image = vision.Image(content=content)
+        response = client.safe_search_detection(image=image)
+        safe = response.safe_search_annotation
+
+        # Likelihood enum: 1=UNKNOWN, 2=VERY_UNLIKELY, 3=UNLIKELY, 4=POSSIBLE, 5=LIKELY, 6=VERY_LIKELY
+        # We block if any of these are LIKELY (5) or VERY_LIKELY (6)
+        if (safe.adult >= 5 or safe.violence >= 5 or safe.racy >= 5):
+            print(f"⚠️ Image flagged by AI Moderation: Adult={safe.adult}, Violence={safe.violence}, Racy={safe.racy}")
+            return False
+            
+        return True
+    except Exception as e:
+        print(f"⚠️ Vision API Error: {str(e)}")
+        return True # Fallback to true if API fails so we don't block legitimate users
 
 # Email sending function
 def send_welcome_email(user_email, user_name):
@@ -242,7 +285,11 @@ def send_report_email_to_authorities(report):
                     </div>
 
                         <div style="flex: 1;">
-                            <h4>Location Information</h4>
+                            <h4>Report Classifications</h4>
+                            <p><strong>Category:</strong> {report.get('category', report.get('department', '')).upper()}</p>
+                            <p><strong>Priority:</strong> {report.get('priority', 'normal').upper()}</p>
+                            
+                            <h4 style="margin-top: 15px;">Location Information</h4>
                             <p><strong>Coordinates:</strong> {report.get('location_text', 'Not provided')}</p>
                             <p><strong>Landmark:</strong> {report.get('landmark', 'Not specified')}</p>
                         </div>
@@ -387,6 +434,85 @@ def send_escalation_email(report):
         return True
     except Exception as e:
         print(f"❌ Failed to notify authorities: {str(e)}")
+        return False
+
+
+def send_confirmation_email_to_reporter(report):
+    """Send confirmation email to the person who reported the issue with the reported content."""
+    try:
+        reporter_email = report.get('reporter_email')
+        if not reporter_email:
+            print("⚠️ No reporter email; skipping confirmation email")
+            return False
+
+        subject = f"Report Received: {report.get('title', 'No Title')}"
+        
+        # Create professional HTML email
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+                <div style="background-color: #2563EB; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+                    <h1 style="margin: 0;">Report Successfully Submitted</h1>
+                </div>
+
+                <div style="border: 1px solid #ddd; border-radius: 0 0 8px 8px; padding: 20px;">
+                    <p>Hi {report.get('reporter_name', 'Citizen')},</p>
+                    <p>Thank you for submitting a report. We have successfully received it and forwarded it to the relevant authorities.</p>
+                    
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                        <h2 style="margin: 0; color: #2563EB;">Your Report Details</h2>
+                        <p style="margin: 5px 0;"><strong>ID:</strong> {report.get('id')}</p>
+                        <p style="margin: 5px 0;"><strong>Title:</strong> {report.get('title')}</p>
+                        <p style="margin: 5px 0;"><strong>Department:</strong> {report.get('department', '').upper()}</p>
+                        <p style="margin: 5px 0;"><strong>Status:</strong> {report.get('status', 'pending').upper()}</p>
+                    </div>
+
+                    <p><strong>Description:</strong></p>
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                        {report.get('description', '')}
+                    </div>
+
+                    <div style="margin: 20px 0;">
+                        <h4>Location Information</h4>
+                        <p><strong>Text:</strong> {report.get('location_text', 'Not provided')}</p>
+                        <p><strong>Landmark:</strong> {report.get('landmark', 'Not specified')}</p>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+                        <p style="color: #666; font-size: 12px;">
+                            This is an automated notification from the Public Assets Reporting System.<br>
+                            Please do not reply to this email directly.
+                        </p>
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+
+        msg = Message(subject=subject, recipients=[reporter_email], html=html_body)
+
+        # Attach images if any
+        images = report.get('images', [])
+        for i, img_path in enumerate(images[:5]):  # Limit to 5 attachments
+            try:
+                # Handle both absolute paths (legacy) and relative paths (new)
+                if 'uploads/' in img_path:
+                     filename_only = os.path.basename(img_path)
+                     full_path = str(UPLOAD_FOLDER / filename_only)
+                else:
+                     full_path = img_path
+                
+                with open(full_path, 'rb') as fp:
+                    filename = f"report_{report.get('id')}_image_{i+1}.jpg"
+                    msg.attach(filename, 'image/jpeg', fp.read())
+            except Exception as e:
+                print(f"⚠️ Could not attach image {img_path}: {str(e)}")
+
+        mail.send(msg)
+        print(f"✓ Confirmation email sent to reporter: {reporter_email}")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to send confirmation email: {str(e)}")
         return False
 
 
@@ -799,6 +925,8 @@ def get_requests():
 
 # CREATE REQUEST ENDPOINT
 @app.route('/api/requests', methods=['POST'])
+@limiter.limit("5 per minute")  # Prevent report spamming
+@limiter.limit("50 per day")
 @handle_errors
 def create_request():
     try:
@@ -816,14 +944,24 @@ def create_request():
             landmark = form.get('landmark')
 
             images = []
+            is_explicit = False
             for f in request.files.getlist('images'):
                 if f and f.filename:
                     filename = secure_filename(f.filename)
                     unique_name = f"{uuid.uuid4().hex}_{filename}"
                     save_path = UPLOAD_FOLDER / unique_name
                     f.save(str(save_path))
+                    
+                    # Moderate the image immediately
+                    if not analyze_image_safety(str(save_path)):
+                        is_explicit = True
+                        
                     # Store relative path for web access
                     images.append(f'uploads/{unique_name}')
+            
+            if is_explicit:
+                # If AI flags it, instantly reject and don't save to DB
+                return jsonify({"msg": "Report rejected. Uploaded images violate our safety policy regarding inappropriate content."}), 400
 
             request_data = {
                 'title': title,
@@ -833,7 +971,7 @@ def create_request():
                 'department': department,
                 'category': category,
                 'priority': priority,
-                'status': 'pending',
+                'status': 'under_review',  # Placed in moderation queue first
                 'createdAt': firestore.SERVER_TIMESTAMP,
                 'reporter_name': reporter_name,
                 'reporter_email': reporter_email,
@@ -861,7 +999,7 @@ def create_request():
                 'department': data.get('department'),
                 'category': data.get('category', data.get('department')),
                 'priority': data.get('priority', 'normal'),
-                'status': 'pending',
+                'status': 'under_review',  # Placed in moderation queue first
                 'createdAt': firestore.SERVER_TIMESTAMP,
                 'userId': data.get('userId'),
                 'images': data.get('images', []),
@@ -943,8 +1081,17 @@ def create_request():
         except Exception:
             pass
 
-        print(f"✓ New request created: {request_data.get('title')} (id: {request_id})")
-        return jsonify({"msg": "Request created successfully", "id": request_id}), 200
+        # Notify reporter
+        try:
+            send_confirmation_email_to_reporter(request_data)
+        except Exception:
+            pass
+
+        print(f"✓ New request created and sent for review: {request_data.get('title')} (id: {request_id})")
+        return jsonify({
+            "msg": "Request submitted successfully. It is currently under review by our moderation team.", 
+            "id": request_id
+        }), 200
     except Exception as e:
         print(f"Error creating request: {str(e)}")
         return jsonify({"msg": "Failed to create request", "error": str(e)}), 500
