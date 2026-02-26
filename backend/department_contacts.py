@@ -7,111 +7,111 @@ Update these with real contact details when available.
 DEPARTMENT_CONTACTS = {
     'pwd': {
         'name': 'Public Works Department (PWD)',
-        'emails': ['pwd@kerala.gov.in', 'pwd.helpline@kerala.gov.in'],
-        'whatsapp': '+91-471-2321900',  # PWD Control Room
-        'phone': '+91-471-2321900',
-        'escalation_emails': ['pwd.secretary@kerala.gov.in'],
-        'escalation_whatsapp': '+91-471-2338100',  # Higher authority
+        'emails': ['gowthampnair123@gmail.com'],
+        'whatsapp': '+918281090547',  # PWD Control Room
+        'phone': '+918281090547',
+        'escalation_emails': ['gowthampnair7@gmail.com'],
+        'escalation_whatsapp': '+918281090547',  # Higher authority
         'response_time_hours': 48,  # Expected response time
         'jurisdiction': 'Roads, bridges, buildings, public infrastructure'
     },
     'kseb': {
         'name': 'Kerala State Electricity Board (KSEB)',
-        'emails': ['complaint@kseb.in', 'helpdesk@kseb.in'],
-        'whatsapp': '+91-1912',  # KSEB Call Center
-        'phone': '+91-1912',
-        'escalation_emails': ['ceo@kseb.in'],
-        'escalation_whatsapp': '+91-471-2448361',  # KSEB HQ
+        'emails': ['gowthampnair123@gmail.com'],
+        'whatsapp': '+918281090547',  # KSEB Call Center
+        'phone': '+918281090547',
+        'escalation_emails': ['gowthampnair7@gmail.com'],
+        'escalation_whatsapp': '+918281090547',  # KSEB HQ
         'response_time_hours': 24,  # Power issues need quick response
         'jurisdiction': 'Electricity supply, power outages, electrical infrastructure'
     },
     'water': {
         'name': 'Kerala Water Authority',
-        'emails': ['complaints@kwa.kerala.gov.in', 'helpdesk@kwa.kerala.gov.in'],
-        'whatsapp': '+91-471-2323456',  # Kerala Water Authority
-        'phone': '+91-471-2323456',
-        'escalation_emails': ['chairman@kwa.kerala.gov.in'],
-        'escalation_whatsapp': '+91-471-2323456',
+        'emails': ['gowthampnair123@gmail.com'],
+        'whatsapp': '+918281090547',  # Kerala Water Authority
+        'phone': '+918281090547',
+        'escalation_emails': ['gowthampnair7@gmail.com'],
+        'escalation_whatsapp': '+918281090547',
         'response_time_hours': 72,
         'jurisdiction': 'Water supply, sewage, drainage, water infrastructure'
     },
     'health': {
         'name': 'Health Department',
-        'emails': ['dhs@kerala.gov.in', 'helpline@dhs.kerala.gov.in'],
-        'whatsapp': '+91-471-2304480',  # Directorate of Health Services
-        'phone': '+91-471-2304480',
-        'escalation_emails': ['minister.health@kerala.gov.in'],
-        'escalation_whatsapp': '+91-471-2333480',
+        'emails': ['gowthampnair123@gmail.com'],
+        'whatsapp': '+918281090547',  # Directorate of Health Services
+        'phone': '+918281090547',
+        'escalation_emails': ['gowthampnair7@gmail.com'],
+        'escalation_whatsapp': '+918281090547',
         'response_time_hours': 24,  # Health emergencies
         'jurisdiction': 'Public health, hospitals, medical facilities'
     },
     'municipal': {
         'name': 'Municipal Corporation',
-        'emails': ['corporation@kerala.gov.in', 'complaints@municipality.kerala.gov.in'],
-        'whatsapp': '+91-471-2471011',  # Thiruvananthapuram Corporation
-        'phone': '+91-471-2471011',
-        'escalation_emails': ['mayor@corporation.kerala.gov.in'],
-        'escalation_whatsapp': '+91-471-2471011',
+        'emails': ['gowthampnair123@gmail.com'],
+        'whatsapp': '+918281090547',  # Thiruvananthapuram Corporation
+        'phone': '+918281090547',
+        'escalation_emails': ['gowthampnair7@gmail.com'],
+        'escalation_whatsapp': '+918281090547',
         'response_time_hours': 72,
         'jurisdiction': 'Local municipal services, waste management, local infrastructure'
     },
     'police': {
         'name': 'Kerala Police',
-        'emails': ['controlroom@kerala.gov.in', 'helpline@kerala.gov.in'],
-        'whatsapp': '112',  # Police Emergency
-        'phone': '112',
-        'escalation_emails': ['dgp@kerala.gov.in'],
-        'escalation_whatsapp': '+91-471-2724488',  # Police HQ
+        'emails': ['gowthampnair123@gmail.com'],
+        'whatsapp': '+918281090547',  # Police Emergency
+        'phone': '+918281090547',
+        'escalation_emails': ['gowthampnair7@gmail.com'],
+        'escalation_whatsapp': '+918281090547',  # Police HQ
         'response_time_hours': 2,  # Emergency response
         'jurisdiction': 'Law enforcement, public safety, emergency response'
     },
     'education': {
         'name': 'Education Department',
-        'emails': ['scert@kerala.gov.in', 'education@kerala.gov.in'],
-        'whatsapp': '+91-471-2336468',  # SCERT Kerala
-        'phone': '+91-471-2336468',
-        'escalation_emails': ['minister.education@kerala.gov.in'],
-        'escalation_whatsapp': '+91-471-2336468',
+        'emails': ['gowthampnair123@gmail.com'],
+        'whatsapp': '+918281090547',  # SCERT Kerala
+        'phone': '+918281090547',
+        'escalation_emails': ['gowthampnair7@gmail.com'],
+        'escalation_whatsapp': '+918281090547',
         'response_time_hours': 168,  # 1 week for educational issues
         'jurisdiction': 'Schools, education infrastructure, academic matters'
     },
     'sanitation': {
         'name': 'Sanitation Department',
-        'emails': ['sanitation@kerala.gov.in', 'swm@kerala.gov.in'],
-        'whatsapp': '+91-471-2323456',  # Local body sanitation
-        'phone': '+91-471-2323456',
-        'escalation_emails': ['director.sanitation@kerala.gov.in'],
-        'escalation_whatsapp': '+91-471-2323456',
+        'emails': ['gowthampnair123@gmail.com'],
+        'whatsapp': '+918281090547',  # Local body sanitation
+        'phone': '+918281090547',
+        'escalation_emails': ['gowthampnair7@gmail.com'],
+        'escalation_whatsapp': '+918281090547',
         'response_time_hours': 48,
         'jurisdiction': 'Waste management, sanitation, public cleanliness'
     },
     'transport': {
         'name': 'Transport Department',
-        'emails': ['transport@kerala.gov.in', 'rto@kerala.gov.in'],
-        'whatsapp': '+91-471-2323215',  # Transport Commissioner
-        'phone': '+91-471-2323215',
-        'escalation_emails': ['commissioner.transport@kerala.gov.in'],
-        'escalation_whatsapp': '+91-471-2323215',
+        'emails': ['gowthampnair123@gmail.com'],
+        'whatsapp': '+918281090547',  # Transport Commissioner
+        'phone': '+918281090547',
+        'escalation_emails': ['gowthampnair7@gmail.com'],
+        'escalation_whatsapp': '+918281090547',
         'response_time_hours': 72,
         'jurisdiction': 'Public transport, roads, traffic management'
     },
     'forest': {
         'name': 'Forest Department',
-        'emails': ['forest@kerala.gov.in', 'wildlife@kerala.gov.in'],
-        'whatsapp': '+91-471-2323045',  # Forest HQ
-        'phone': '+91-471-2323045',
-        'escalation_emails': ['principalcc@kerala.gov.in'],
-        'escalation_whatsapp': '+91-471-2323045',
+        'emails': ['gowthampnair123@gmail.com'],
+        'whatsapp': '+918281090547',  # Forest HQ
+        'phone': '+918281090547',
+        'escalation_emails': ['gowthampnair7@gmail.com'],
+        'escalation_whatsapp': '+918281090547',
         'response_time_hours': 96,
         'jurisdiction': 'Forest protection, wildlife, environmental conservation'
     },
     'other': {
         'name': 'General Administration',
-        'emails': ['complaints@kerala.gov.in', 'helpline@kerala.gov.in'],
+        'emails': ['gowthampnair123@gmail.com'],
         'whatsapp': '+918281090547',  # Test WhatsApp number
-        'phone': '+91-471-2333480',
-        'escalation_emails': ['chiefsecretary@kerala.gov.in'],
-        'escalation_whatsapp': '+91-471-2333480',
+        'phone': '+918281090547',
+        'escalation_emails': ['gowthampnair7@gmail.com'],
+        'escalation_whatsapp': '+918281090547',
         'response_time_hours': 72,
         'jurisdiction': 'General complaints and issues not covered by other departments'
     }
