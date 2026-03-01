@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../config.dart';
 import 'dart:convert';
 import '../utils/language_manager.dart';
+import '../utils/pathanamthitta_data.dart';
 
 class ReportScreen extends StatefulWidget {
   final String token;
@@ -26,8 +27,13 @@ class _ReportScreenState extends State<ReportScreen> {
 
   String department = 'PWD';
   String priority = 'normal';
+  String district = PathanamthittaData.district;
+  String? selectedLocalBodyType;
+  String? selectedLocalBodyName;
+  String? selectedDepartmentOffice;
   String locationText = '';
-  final locationCtrl = TextEditingController();
+  final locationCtrl =
+      TextEditingController(); // This will act as the "Place / Locality" text field in addition to GPS
   List<XFile> images = [];
   bool isSubmitting = false;
 
@@ -138,6 +144,30 @@ class _ReportScreenState extends State<ReportScreen> {
 
   Future<void> sendOtpAndShowDialog() async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (selectedLocalBodyType == null || selectedLocalBodyName == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select your local body type and name.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (selectedDepartmentOffice == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select the specific department office.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
 
@@ -259,8 +289,13 @@ class _ReportScreenState extends State<ReportScreen> {
 
       req.fields['title'] = titleCtrl.text.trim();
       req.fields['description'] = descCtrl.text.trim();
+      req.fields['district'] = district;
+      req.fields['local_body_type'] = selectedLocalBodyType!;
+      req.fields['local_body_name'] = selectedLocalBodyName!;
+      req.fields['place'] = locationCtrl.text.trim();
       req.fields['location'] = locationText.isNotEmpty ? locationText : '';
       req.fields['department'] = department;
+      req.fields['department_office'] = selectedDepartmentOffice ?? '';
       req.fields['priority'] = priority;
       req.fields['reporter_name'] = reporterNameCtrl.text.trim();
       req.fields['reporter_email'] = reporterEmailCtrl.text.trim();
@@ -391,27 +426,74 @@ class _ReportScreenState extends State<ReportScreen> {
               Row(
                 children: [
                   Expanded(
+                    // Local Body Type dropdown
+                    child: DropdownButtonFormField<String>(
+                      initialValue: selectedLocalBodyType,
+                      items: PathanamthittaData.localBodyTypes.map((
+                        String val,
+                      ) {
+                        return DropdownMenuItem<String>(
+                          value: val,
+                          child: Text(val),
+                        );
+                      }).toList(),
+                      onChanged: (v) {
+                        setState(() {
+                          selectedLocalBodyType = v;
+                          selectedLocalBodyName = null;
+                        });
+                      },
+                      decoration: const InputDecoration(
+                        labelText: 'Local Body Type',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    // Local Body Name dropdown
+                    child: DropdownButtonFormField<String>(
+                      initialValue: selectedLocalBodyName,
+                      items:
+                          (selectedLocalBodyType == null
+                                  ? <String>[]
+                                  : PathanamthittaData.getLocalBodies(
+                                      selectedLocalBodyType!,
+                                    ))
+                              .map((String val) {
+                                return DropdownMenuItem<String>(
+                                  value: val,
+                                  child: Text(val),
+                                );
+                              })
+                              .toList(),
+                      onChanged: selectedLocalBodyType == null
+                          ? null
+                          : (v) => setState(() => selectedLocalBodyName = v),
+                      decoration: const InputDecoration(
+                        labelText: 'Local Body Name',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
                     child: DropdownButtonFormField<String>(
                       initialValue: department,
-                      items: const [
-                        DropdownMenuItem(value: 'PWD', child: Text('PWD')),
-                        DropdownMenuItem(value: 'KSEB', child: Text('KSEB')),
-                        DropdownMenuItem(value: 'Water', child: Text('Water')),
-                        DropdownMenuItem(
-                          value: 'Health',
-                          child: Text('Health'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Municipal',
-                          child: Text('Municipal'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Police',
-                          child: Text('Police'),
-                        ),
-                        DropdownMenuItem(value: 'Other', child: Text('Other')),
-                      ],
-                      onChanged: (v) => setState(() => department = v ?? 'PWD'),
+                      items: PathanamthittaData.departments.map((String val) {
+                        return DropdownMenuItem<String>(
+                          value: val,
+                          child: Text(val),
+                        );
+                      }).toList(),
+                      onChanged: (v) {
+                        setState(() {
+                          department = v ?? 'PWD';
+                          selectedDepartmentOffice = null;
+                        });
+                      },
                       decoration: InputDecoration(
                         labelText: LanguageManager.instance.t('department'),
                       ),
@@ -443,14 +525,39 @@ class _ReportScreenState extends State<ReportScreen> {
                 ],
               ),
               const SizedBox(height: 12),
+              // Department Subdivision dropdown
+              DropdownButtonFormField<String>(
+                initialValue: selectedDepartmentOffice,
+                items:
+                    PathanamthittaData.departmentSubdivisions[department]?.map((
+                      String val,
+                    ) {
+                      return DropdownMenuItem<String>(
+                        value: val,
+                        child: Text(val),
+                      );
+                    }).toList() ??
+                    [],
+                onChanged: (v) => setState(() => selectedDepartmentOffice = v),
+                decoration: const InputDecoration(
+                  labelText: 'Department Subdivision / Office',
+                ),
+                validator: (value) {
+                  if (value == null) {
+                    return 'Please select a department office';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
                       readOnly: false,
                       decoration: InputDecoration(
-                        labelText: LanguageManager.instance.t('location'),
-                        hintText: locationText,
+                        labelText: 'Place / Locality',
+                        hintText: "Enter place or use GPS ->",
                       ),
                       controller: locationCtrl,
                     ),

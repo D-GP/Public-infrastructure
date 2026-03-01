@@ -229,7 +229,11 @@ def send_report_email_to_authorities(report):
     """Send department-specific email notification for new reports."""
     try:
         department_code = report.get('department', '').lower()
-        recipients = get_emails_for_department(department_code)
+        district = report.get('district', 'Pathanamthitta')
+        local_body_name = report.get('local_body_name', '')
+        department_office = report.get('department_office', '')
+        
+        recipients = get_emails_for_department(district, local_body_name, department_code, department_office)
 
         if not recipients:
             print(f"⚠️ No email addresses configured for department: {department_code}")
@@ -274,6 +278,10 @@ def send_report_email_to_authorities(report):
                             <p><strong>Priority:</strong> {report.get('priority', 'normal').upper()}</p>
                             
                             <h4 style="margin-top: 15px;">Location Information</h4>
+                            <p><strong>District:</strong> {district}</p>
+                            <p><strong>Local Body:</strong> {local_body_name} ({report.get('local_body_type', 'Not specified')})</p>
+                            <p><strong>Department Office:</strong> {department_office or 'District Default'}</p>
+                            <p><strong>Place:</strong> {report.get('place', 'Not provided')}</p>
                             <p><strong>Coordinates:</strong> {report.get('location_text', 'Not provided')}</p>
                             <p><strong>Landmark:</strong> {report.get('landmark', 'Not specified')}</p>
                         </div>
@@ -287,8 +295,8 @@ def send_report_email_to_authorities(report):
 
                     <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0;">
                         <h4 style="margin: 0 0 10px 0; color: #0c5460;">Action Required</h4>
-                        <p>Please review this report and take appropriate action within {get_response_time_for_department(department_code)} hours.</p>
-                        <p><strong>Expected Response Time:</strong> {get_response_time_for_department(department_code)} hours</p>
+                        <p>Please review this report and take appropriate action within {get_response_time_for_department(district, local_body_name, department_code, department_office)} hours.</p>
+                        <p><strong>Expected Response Time:</strong> {get_response_time_for_department(district, local_body_name, department_code, department_office)} hours</p>
                     </div>
 
                     <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
@@ -516,13 +524,16 @@ def register():
     age = data.get('age')
     phone = data.get('phone', '').strip()
     gender = data.get('gender', '')
-    address = data.get('address', '').strip()
+    district = data.get('district', 'Pathanamthitta').strip()
+    local_body_type = data.get('local_body_type', '').strip()
+    local_body_name = data.get('local_body_name', '').strip()
+    place = data.get('place', '').strip()
     email = data.get('email', '').strip()
     password = data.get('password', '')
     otp = data.get('otp', '').strip()
 
     # Validate required fields
-    if not all([name, age, phone, gender, address, email, password, otp]):
+    if not all([name, age, phone, gender, district, local_body_type, local_body_name, place, email, password, otp]):
         return jsonify({"msg": "All fields including OTP are required"}), 400
 
     # Validate individual fields
@@ -544,8 +555,8 @@ def register():
     if gender not in ['Male', 'Female']:
         return jsonify({"msg": "Invalid gender selection"}), 400
 
-    if not validate_address(address):
-        return jsonify({"msg": "Address must be at least 5 characters"}), 400
+    if len(place) < 3:
+        return jsonify({"msg": "Place must be at least 3 characters"}), 400
 
     try:
         # Verify OTP
@@ -572,7 +583,10 @@ def register():
             'age': int(age),
             'phone': phone,
             'gender': gender,
-            'address': address,
+            'district': district,
+            'local_body_type': local_body_type,
+            'local_body_name': local_body_name,
+            'place': place,
             'email': email,
             'password': bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
             'created_at': firestore.SERVER_TIMESTAMP
@@ -918,6 +932,7 @@ def create_request():
             description = form.get('description')
             location_text = form.get('location')
             department = form.get('department')
+            department_office = form.get('department_office', '')
             category = form.get('category', department)
             priority = form.get('priority', 'normal')
             reporter_name = form.get('reporter_name')
@@ -954,6 +969,7 @@ def create_request():
                 'location': {'text': location_text},
                 'location_text': location_text,
                 'department': department,
+                'department_office': department_office,
                 'category': category,
                 'priority': priority,
                 'status': 'under_review',  # Placed in moderation queue first
@@ -981,6 +997,7 @@ def create_request():
                 'location': data.get('location'),
                 'location_text': data.get('location') if isinstance(data.get('location'), str) else '',
                 'department': data.get('department'),
+                'department_office': data.get('department_office', ''),
                 'category': data.get('category', data.get('department')),
                 'priority': data.get('priority', 'normal'),
                 'status': 'under_review',  # Placed in moderation queue first

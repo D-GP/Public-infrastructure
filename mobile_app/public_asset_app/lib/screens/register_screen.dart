@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
 import '../utils/language_manager.dart';
+import '../utils/pathanamthitta_data.dart';
 import '../config.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -17,12 +18,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final nameController = TextEditingController();
   final ageController = TextEditingController();
   final phoneController = TextEditingController();
-  final addressController = TextEditingController();
+  final placeController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
 
   String? selectedGender;
+  String? selectedLocalBodyType;
+  String? selectedLocalBodyName;
   bool loading = false;
   bool obscurePassword = true;
   bool obscureConfirmPassword = true;
@@ -33,7 +36,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     nameController.dispose();
     ageController.dispose();
     phoneController.dispose();
-    addressController.dispose();
+    placeController.dispose();
     emailController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
@@ -106,12 +109,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return null;
   }
 
-  String? _validateAddress(String? value) {
+  String? _validatePlace(String? value) {
     if (value == null || value.isEmpty) {
       return LanguageManager.instance.t('required');
     }
-    if (value.length < 5) {
-      return 'Address must be at least 5 characters';
+    if (value.length < 3) {
+      return 'Place must be at least 3 characters';
     }
     return null;
   }
@@ -124,10 +127,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    // Validate gender
+    // Validate gender and location
     if (selectedGender == null) {
       setState(
         () => errorMessage = LanguageManager.instance.t('select_gender'),
+      );
+      return;
+    }
+    if (selectedLocalBodyType == null || selectedLocalBodyName == null) {
+      setState(
+        () => errorMessage = 'Please select your local body type and name',
       );
       return;
     }
@@ -256,7 +265,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               'age': int.parse(ageController.text),
               'phone': phoneController.text.trim(),
               'gender': selectedGender,
-              'address': addressController.text.trim(),
+              'district': PathanamthittaData.district,
+              'local_body_type': selectedLocalBodyType,
+              'local_body_name': selectedLocalBodyName,
+              'place': placeController.text.trim(),
               'email': emailController.text.trim(),
               'password': passwordController.text,
               'otp': otp,
@@ -462,13 +474,86 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      // Address field
-                      TextFormField(
-                        controller: addressController,
-                        maxLines: 3,
-                        validator: _validateAddress,
+                      // Local Body Type dropdown
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedLocalBodyType,
+                        validator: (value) {
+                          if (value == null) {
+                            return LanguageManager.instance.t('required');
+                          }
+                          return null;
+                        },
                         decoration: InputDecoration(
-                          labelText: LanguageManager.instance.t('address'),
+                          labelText: 'Local Body Type',
+                          prefixIcon: const Icon(Icons.location_city),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        items: PathanamthittaData.localBodyTypes.map((
+                          String value,
+                        ) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selectedLocalBodyType = value;
+                            selectedLocalBodyName =
+                                null; // Reset dependent dropdown
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      // Local Body Name dropdown
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedLocalBodyName,
+                        validator: (value) {
+                          if (value == null) {
+                            return LanguageManager.instance.t('required');
+                          }
+                          return null;
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Local Body Name',
+                          prefixIcon: const Icon(Icons.map),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        items:
+                            (selectedLocalBodyType == null
+                                    ? <String>[]
+                                    : PathanamthittaData.getLocalBodies(
+                                        selectedLocalBodyType!,
+                                      ))
+                                .map((String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  );
+                                })
+                                .toList(),
+                        onChanged: selectedLocalBodyType == null
+                            ? null
+                            : (value) {
+                                setState(() => selectedLocalBodyName = value);
+                              },
+                      ),
+                      const SizedBox(height: 16),
+                      // Place field
+                      TextFormField(
+                        controller: placeController,
+                        maxLines: 2,
+                        validator: _validatePlace,
+                        decoration: InputDecoration(
+                          labelText: 'Place / Locality',
                           prefixIcon: const Icon(Icons.home),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),

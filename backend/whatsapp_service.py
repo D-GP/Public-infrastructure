@@ -113,8 +113,12 @@ class WhatsAppService:
         Send report notification to department via WhatsApp
         """
         from department_contacts import get_whatsapp_for_department
+        
+        district = report_data.get('district', 'Pathanamthitta')
+        local_body_name = report_data.get('local_body_name', '')
+        department_office = report_data.get('department_office', '')
 
-        whatsapp_number = get_whatsapp_for_department(department_code, escalation)
+        whatsapp_number = get_whatsapp_for_department(district, local_body_name, department_code, department_office, escalation)
 
         if not whatsapp_number:
             logger.warning(f"⚠️ No WhatsApp number configured for department: {department_code}")
@@ -139,8 +143,13 @@ class WhatsAppService:
 *Description:*
 {report_data.get('description', '')}
 
-*Location:* {report_data.get('location_text', 'Not specified')}
-*Landmark:* {report_data.get('landmark', 'Not specified')}
+*Location:*
+District: {district}
+Local Body: {local_body_name} ({report_data.get('local_body_type', 'Not specified')})
+Department Office: {department_office or 'District Default'}
+Place: {report_data.get('place', 'Not provided')}
+GPS: {report_data.get('location_text', 'Not specified')}
+Landmark: {report_data.get('landmark', 'Not specified')}
 
 *Reporter:* {report_data.get('reporter_name', '')}
 *Contact:* {report_data.get('reporter_email', '')}
@@ -170,8 +179,12 @@ _Sent via Public Assets Reporting System_"""
         Send reminder notification for unresolved reports
         """
         from department_contacts import get_whatsapp_for_department
+        
+        district = report_data.get('district', 'Pathanamthitta')
+        local_body_name = report_data.get('local_body_name', '')
+        department_office = report_data.get('department_office', '')
 
-        whatsapp_number = get_whatsapp_for_department(department_code)
+        whatsapp_number = get_whatsapp_for_department(district, local_body_name, department_code, department_office)
 
         if not whatsapp_number:
             return {'success': False, 'error': 'No WhatsApp number configured'}
@@ -201,8 +214,12 @@ _Urgent attention required!_"""
         Send escalation notification to higher authorities
         """
         from department_contacts import get_whatsapp_for_department
+        
+        district = report_data.get('district', 'Pathanamthitta')
+        local_body_name = report_data.get('local_body_name', '')
+        department_office = report_data.get('department_office', '')
 
-        whatsapp_number = get_whatsapp_for_department(department_code, escalation=True)
+        whatsapp_number = get_whatsapp_for_department(district, local_body_name, department_code, department_office, escalation=True)
 
         if not whatsapp_number:
             return {'success': False, 'error': 'No escalation WhatsApp number configured'}
