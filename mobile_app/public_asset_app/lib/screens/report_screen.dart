@@ -227,7 +227,7 @@ class _ReportScreenState extends State<ReportScreen> {
                           bool success = await _submit(
                             otpController.text.trim(),
                           );
-                          if (mounted) {
+                          if (context.mounted) {
                             setDialogState(() => isVerifying = false);
                             if (success) {
                               Navigator.pop(context); // Close dialog

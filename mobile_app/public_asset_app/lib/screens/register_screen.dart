@@ -222,7 +222,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           bool success = await _performRegistration(
                             otpController.text.trim(),
                           );
-                          if (mounted) {
+                          if (context.mounted) {
                             setDialogState(() => isVerifying = false);
                             if (success) {
                               Navigator.pop(context); // Close dialog
