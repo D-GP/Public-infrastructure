@@ -116,7 +116,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return null;
   }
 
-  Future<void> register() async {
+  Future<void> sendOtpAndShowDialog() async {
     setState(() => errorMessage = null);
 
     // Validate form
@@ -137,60 +137,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final response = await http
           .post(
-            Uri.parse('${Config.apiBaseUrl}/register'),
+            Uri.parse('${Config.apiBaseUrl}/api/send-otp'),
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'name': nameController.text.trim(),
-              'age': int.parse(ageController.text),
-              'phone': phoneController.text.trim(),
-              'gender': selectedGender,
-              'address': addressController.text.trim(),
-              'email': emailController.text.trim(),
-              'password': passwordController.text,
-            }),
+            body: jsonEncode({'email': emailController.text.trim()}),
           )
-          .timeout(
-            const Duration(seconds: 10),
-            onTimeout: () {
-              throw Exception('Request timeout. Please check your connection.');
-            },
-          );
+          .timeout(const Duration(seconds: 10));
 
       if (!mounted) return;
 
-      // Parse response
-      final responseBody = jsonDecode(response.body);
-      final message = responseBody['msg'] ?? 'An error occurred';
-
       if (response.statusCode == 200) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              LanguageManager.instance.t('registration_successful'),
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        // Navigate back after a short delay
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (!mounted) return;
-        Navigator.pop(context);
-      } else if (response.statusCode == 400) {
-        setState(() => errorMessage = message);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.orange),
-        );
+        _showOtpDialog();
       } else {
-        setState(() => errorMessage = message);
-        if (!mounted) return;
+        final resBody = jsonDecode(response.body);
+        setState(() => errorMessage = resBody['msg'] ?? 'Failed to send OTP');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $message'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(errorMessage!), backgroundColor: Colors.red),
         );
       }
     } on SocketException catch (_) {
@@ -209,6 +170,139 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     } finally {
       if (mounted) setState(() => loading = false);
+    }
+  }
+
+  void _showOtpDialog() {
+    final otpController = TextEditingController();
+    bool isVerifying = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Enter OTP'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('We have sent a 6-digit OTP to your email.'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: otpController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    decoration: const InputDecoration(
+                      labelText: 'OTP',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isVerifying ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isVerifying
+                      ? null
+                      : () async {
+                          if (otpController.text.length != 6) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Enter a valid 6-digit OTP'),
+                              ),
+                            );
+                            return;
+                          }
+                          setDialogState(() => isVerifying = true);
+                          bool success = await _performRegistration(
+                            otpController.text.trim(),
+                          );
+                          if (mounted) {
+                            setDialogState(() => isVerifying = false);
+                            if (success) {
+                              Navigator.pop(context); // Close dialog
+                            }
+                          }
+                        },
+                  child: isVerifying
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Verify & Register'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<bool> _performRegistration(String otp) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${Config.apiBaseUrl}/register'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'name': nameController.text.trim(),
+              'age': int.parse(ageController.text),
+              'phone': phoneController.text.trim(),
+              'gender': selectedGender,
+              'address': addressController.text.trim(),
+              'email': emailController.text.trim(),
+              'password': passwordController.text,
+              'otp': otp,
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw Exception('Request timeout. Please check your connection.');
+            },
+          );
+
+      if (!mounted) return false;
+
+      final responseBody = jsonDecode(response.body);
+      final message = responseBody['msg'] ?? 'An error occurred';
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              LanguageManager.instance.t('registration_successful'),
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return true;
+        Navigator.pop(context);
+        return true;
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
+        );
+        return false;
+      }
+    } catch (e) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
     }
   }
 
@@ -463,7 +557,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: loading ? null : register,
+                          onPressed: loading ? null : sendOtpAndShowDialog,
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             backgroundColor: Colors.blue,

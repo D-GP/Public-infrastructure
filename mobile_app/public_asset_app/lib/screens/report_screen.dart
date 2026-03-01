@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import '../config.dart';
+import 'dart:convert';
 import '../utils/language_manager.dart';
 
 class ReportScreen extends StatefulWidget {
@@ -135,11 +136,121 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
-  Future<void> _submit() async {
+  Future<void> sendOtpAndShowDialog() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
+    setState(() => isSubmitting = true);
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${Config.apiBaseUrl}/api/send-otp'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': reporterEmailCtrl.text.trim()}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        _showOtpDialog();
+      } else {
+        final resBody = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(resBody['msg'] ?? 'Failed to send OTP'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Connection Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => isSubmitting = false);
+    }
+  }
+
+  void _showOtpDialog() {
+    final otpController = TextEditingController();
+    bool isVerifying = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Enter OTP'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('We have sent a 6-digit OTP to your email.'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: otpController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    decoration: const InputDecoration(
+                      labelText: 'OTP',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isVerifying ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isVerifying
+                      ? null
+                      : () async {
+                          if (otpController.text.length != 6) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Enter a valid 6-digit OTP'),
+                              ),
+                            );
+                            return;
+                          }
+                          setDialogState(() => isVerifying = true);
+                          bool success = await _submit(
+                            otpController.text.trim(),
+                          );
+                          if (mounted) {
+                            setDialogState(() => isVerifying = false);
+                            if (success) {
+                              Navigator.pop(context); // Close dialog
+                            }
+                          }
+                        },
+                  child: isVerifying
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Verify & Submit'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<bool> _submit(String otp) async {
     setState(() => isSubmitting = true);
 
     try {
@@ -155,6 +266,7 @@ class _ReportScreenState extends State<ReportScreen> {
       req.fields['reporter_email'] = reporterEmailCtrl.text.trim();
       req.fields['landmark'] = landmarkCtrl.text.trim();
       req.fields['userId'] = widget.userId;
+      req.fields['otp'] = otp;
 
       for (var file in images) {
         final multipartFile = await http.MultipartFile.fromPath(
@@ -169,7 +281,7 @@ class _ReportScreenState extends State<ReportScreen> {
       final resp = await http.Response.fromStream(streamed);
 
       if (!mounted) {
-        return;
+        return false;
       }
       if (resp.statusCode == 200 || resp.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -179,6 +291,7 @@ class _ReportScreenState extends State<ReportScreen> {
           ),
         );
         Navigator.of(context).pop(true);
+        return true;
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -186,6 +299,7 @@ class _ReportScreenState extends State<ReportScreen> {
             backgroundColor: Colors.red,
           ),
         );
+        return false;
       }
     } catch (e) {
       if (mounted) {
@@ -198,6 +312,7 @@ class _ReportScreenState extends State<ReportScreen> {
           ),
         );
       }
+      return false;
     } finally {
       if (mounted) setState(() => isSubmitting = false);
     }
@@ -474,7 +589,7 @@ class _ReportScreenState extends State<ReportScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: isSubmitting ? null : _submit,
+                  onPressed: isSubmitting ? null : sendOtpAndShowDialog,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
                     padding: const EdgeInsets.symmetric(vertical: 14),

@@ -442,6 +442,66 @@ def send_completion_email_to_reporter(report):
         print(f"❌ Failed to send completion email: {str(e)}")
         return False
 
+def send_otp_email(email, otp):
+    """Send OTP email for verification."""
+    try:
+        subject = "Your Verification OTP - Public Assets"
+        html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #2563EB; color: white; padding: 20px; text-align: center;">
+                <h2 style="margin: 0;">Email Verification</h2>
+            </div>
+            <div style="padding: 20px; border: 1px solid #ddd; borderRadius: 0 0 8px 8px;">
+                <p>Hello,</p>
+                <p>Please use the following One-Time Password (OTP) to verify your email address. This OTP is valid for 10 minutes.</p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <span style="font-size: 32px; font-weight: bold; background-color: #f1f5f9; padding: 10px 20px; border-radius: 5px; letter-spacing: 5px;">{otp}</span>
+                </div>
+                <p>If you did not request this verification, please ignore this email.</p>
+            </div>
+        </div>
+        """
+        msg = Message(subject=subject, recipients=[email], html=html)
+        mail.send(msg)
+        print(f"✓ OTP email sent to {email}")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to send OTP email: {str(e)}")
+        return False
+
+@app.route('/api/send-otp', methods=['POST'])
+@limiter.limit("5 per minute")
+@handle_errors
+def send_otp():
+    if db is None:
+        return jsonify({"msg": "Database not available"}), 503
+    
+    data = request.get_json()
+    email = data.get('email', '').strip()
+    
+    if not email or not validate_email(email):
+        return jsonify({"msg": "Valid email is required"}), 400
+        
+    # Generate 6-digit OTP
+    import random
+    otp = str(random.randint(100000, 999999))
+    
+    # Store OTP in Firestore with expiration
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    
+    # Check for existing OTP and update or create new
+    otp_ref = db.collection('otps').document(email)
+    otp_ref.set({
+        'otp': otp,
+        'expires_at': expires_at,
+        'created_at': firestore.SERVER_TIMESTAMP
+    })
+    
+    if send_otp_email(email, otp):
+        return jsonify({"msg": "OTP sent successfully"}), 200
+    else:
+        return jsonify({"msg": "Failed to send OTP"}), 500
+
 # REGISTER ENDPOINT
 @app.route('/register', methods=['POST'])
 @handle_errors
@@ -459,10 +519,11 @@ def register():
     address = data.get('address', '').strip()
     email = data.get('email', '').strip()
     password = data.get('password', '')
+    otp = data.get('otp', '').strip()
 
     # Validate required fields
-    if not all([name, age, phone, gender, address, email, password]):
-        return jsonify({"msg": "All fields are required"}), 400
+    if not all([name, age, phone, gender, address, email, password, otp]):
+        return jsonify({"msg": "All fields including OTP are required"}), 400
 
     # Validate individual fields
     if not validate_name(name):
@@ -487,6 +548,19 @@ def register():
         return jsonify({"msg": "Address must be at least 5 characters"}), 400
 
     try:
+        # Verify OTP
+        otp_doc = db.collection('otps').document(email).get()
+        if not otp_doc.exists:
+            return jsonify({"msg": "OTP not requested or expired. Please request a new OTP."}), 400
+            
+        otp_data = otp_doc.to_dict()
+        if otp_data.get('otp') != otp:
+            return jsonify({"msg": "Invalid OTP. Please try again."}), 400
+            
+        expires_at = otp_data.get('expires_at')
+        if expires_at and isinstance(expires_at, datetime) and datetime.now(timezone.utc) > expires_at:
+            return jsonify({"msg": "OTP expired. Please request a new OTP."}), 400
+
         # Check if email already exists
         existing_users = db.collection('users').where('email', '==', email).stream()
         if any(existing_users):
@@ -506,6 +580,9 @@ def register():
 
         db.collection('users').add(user_data)
         print(f"✓ New user registered: {email}")
+
+        # Delete OTP after successful registration
+        db.collection('otps').document(email).delete()
 
         # Send welcome email
         email_sent = send_welcome_email(email, name)
@@ -846,6 +923,10 @@ def create_request():
             reporter_name = form.get('reporter_name')
             reporter_email = form.get('reporter_email')
             landmark = form.get('landmark')
+            otp = form.get('otp', '').strip()
+            
+            if not reporter_email or not otp:
+                return jsonify({"msg": "Reporter email and OTP are required"}), 400
 
             images = []
             is_explicit = False
@@ -887,9 +968,12 @@ def create_request():
         else:
             data = request.get_json()
             # Validate required fields
-            required_fields = ['title', 'description', 'location', 'department', 'priority']
+            required_fields = ['title', 'description', 'location', 'department', 'priority', 'otp', 'reporter_email']
             if not data or not all(field in data for field in required_fields):
                 return jsonify({"msg": "Missing required fields"}), 400
+
+            otp = data.get('otp', '').strip()
+            reporter_email = data.get('reporter_email')
 
             request_data = {
                 'title': data.get('title'),
@@ -908,6 +992,25 @@ def create_request():
                 'landmark': data.get('landmark'),
                 'lastReminderAt': None,
             }
+
+        # Verify OTP before saving
+        otp_doc = db.collection('otps').document(reporter_email).get()
+        if not otp_doc.exists:
+            return jsonify({"msg": "OTP not requested or expired. Please request a new OTP."}), 400
+            
+        otp_data = otp_doc.to_dict()
+        if otp_data.get('otp') != otp:
+            return jsonify({"msg": "Invalid OTP. Please try again."}), 400
+            
+        expires_at = otp_data.get('expires_at')
+        if expires_at and isinstance(expires_at, datetime) and datetime.now(timezone.utc) > expires_at:
+            return jsonify({"msg": "OTP expired. Please request a new OTP."}), 400
+            
+        # Delete OTP after successful verification
+        try:
+            db.collection('otps').document(reporter_email).delete()
+        except:
+            pass
 
         # Save to Firestore
         doc_ref = db.collection('requests').add(request_data)
