@@ -38,25 +38,43 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 from department_contacts import get_emails_for_department, get_response_time_for_department
 from whatsapp_service import send_whatsapp_notification, send_whatsapp_reminder, send_whatsapp_escalation
 
-from google.cloud import vision
+# Optional: Google Cloud Vision for image moderation
+try:
+    from google.cloud import vision
+    VISION_AVAILABLE = True
+except ImportError:
+    VISION_AVAILABLE = False
+    print("⚠️ Google Cloud Vision not installed. Image moderation disabled.")
+
 import io
 
 # Load environment variables
 load_dotenv()
 
 from flask import Flask, request, jsonify, send_from_directory
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+
+# Optional: Flask-Limiter for rate limiting
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    LIMITER_AVAILABLE = True
+except ImportError:
+    LIMITER_AVAILABLE = False
+    print("⚠️ Flask-Limiter not installed. Rate limiting disabled.")
 
 app = Flask(__name__)
 
-# Initialize Rate Limiter
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://"
-)
+# Initialize Rate Limiter only if available
+if LIMITER_AVAILABLE:
+    limiter = Limiter(
+        get_remote_address,
+        app=app,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://"
+    )
+else:
+    limiter = None
+
 # JWT Configuration
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "your-super-secret-jwt-key-change-it")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
@@ -150,9 +168,9 @@ def analyze_image_safety(image_path):
     using Google Cloud Vision API. Returns True if SAFE, False if EXPLICIT.
     """
     try:
-        # Check if we have firebase creds as an indicator that GCP is available
-        if db is None:
-            return True # In offline/dev mode, assume safe
+        # Check if Vision API is available
+        if not VISION_AVAILABLE or db is None:
+            return True # In offline/dev mode or without Vision API, assume safe
             
         client = vision.ImageAnnotatorClient()
         with io.open(image_path, 'rb') as image_file:
@@ -642,10 +660,12 @@ def admin_register():
     if any(existing):
         return jsonify({"msg": "Admin email already exists"}), 400
 
+    # hash the password before storing
+    hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     admin_data = {
         'name': name,
         'email': email,
-        'password': password, # Note: Hash in production
+        'password': hashed,
         'department': department,
         'role': 'admin',
         'createdAt': firestore.SERVER_TIMESTAMP
@@ -676,9 +696,30 @@ def admin_login_api():
     if admin_list:
         admin_doc = admin_list[0]
         admin_data = admin_doc.to_dict()
+        stored_password = admin_data.get('password', '')
         
-        if admin_data.get('password') == password:
+        # Try bcrypt verification first (if it looks like a hash)
+        is_valid = False
+        try:
+            if stored_password.startswith('$2b$') or stored_password.startswith('$2a$') or stored_password.startswith('$2y$'):
+                is_valid = bcrypt.checkpw(password.encode('utf-8'), stored_password.encode('utf-8'))
+            else:
+                # Fallback to plain text comparison
+                is_valid = (password == stored_password)
+        except Exception as hash_err:
+            print(f"Hash verification error: {hash_err}. Trying plain text...")
+            # Fallback to plain text
+            is_valid = (password == stored_password)
+        
+        if is_valid:
             print(f"✓ Admin logged in: {email}")
+            # Create JWT access token containing admin identity
+            access_token = create_access_token(identity={
+                'email': admin_data.get('email'),
+                'admin_id': admin_doc.id,
+                'department': admin_data.get('department'),
+                'name': admin_data.get('name')
+            })
             return jsonify({
                 "msg": "Login Success",
                 "user": {
@@ -688,7 +729,7 @@ def admin_login_api():
                     "department": admin_data.get('department'),
                     "role": "admin"
                 },
-                "token": f"admin_{admin_doc.id}" # Simple token for demo
+                "token": access_token
             }), 200
         else:
             return jsonify({"msg": "Invalid credentials"}), 401
@@ -852,6 +893,8 @@ def refresh():
 
 # GET ALL REQUESTS ENDPOINT
 @app.route('/api/requests', methods=['GET'])
+# jwt is optional so mobile clients can still call this without a token
+@jwt_required(optional=True)
 @handle_errors
 def get_requests():
     try:
@@ -860,6 +903,13 @@ def get_requests():
         status = request.args.get('status')
         user_id = request.args.get('userId')  # Get userId filter
 
+        # if caller provided a valid JWT containing admin data, enforce its department
+        current_user = get_jwt_identity()
+        if isinstance(current_user, dict):
+            dept_token = current_user.get('department')
+            if dept_token:
+                # override any provided department filter so admins only see their own
+                department = dept_token
         print(f"DEBUG: get_requests called with department={department}, status={status}, userId={user_id}")
 
         # Build query based on filters
@@ -925,8 +975,8 @@ def get_requests():
 
 # CREATE REQUEST ENDPOINT
 @app.route('/api/requests', methods=['POST'])
-@limiter.limit("5 per minute")  # Prevent report spamming
-@limiter.limit("50 per day")
+@limiter.limit("5 per minute") if LIMITER_AVAILABLE else lambda f: f  # Prevent report spamming
+@limiter.limit("50 per day") if LIMITER_AVAILABLE else lambda f: f
 @handle_errors
 def create_request():
     try:
@@ -1118,6 +1168,8 @@ def get_request(request_id):
 
 # UPDATE REQUEST ENDPOINT
 @app.route('/api/requests/<request_id>', methods=['PUT'])
+# allow optional jwt so legacy mobile clients still work
+@jwt_required(optional=True)
 @handle_errors
 def update_request(request_id):
     try:
@@ -1133,6 +1185,13 @@ def update_request(request_id):
             return jsonify({"msg": "Request not found"}), 404
 
         old = doc.to_dict() or {}
+
+        # if an admin token was provided, ensure they are allowed to modify this report
+        current_user = get_jwt_identity()
+        if isinstance(current_user, dict):
+            dept_token = current_user.get('department')
+            if dept_token and old.get('department') != dept_token:
+                return jsonify({"msg": "Forbidden - cannot modify reports from other departments"}), 403
 
         # Update only provided fields
         update_data = {}
@@ -1347,6 +1406,278 @@ def start_reminder_worker():
 
     t = threading.Thread(target=reminder_worker_loop, daemon=True)
     t.start()
+
+# ========================= ADMIN PORTAL ENDPOINTS =========================
+
+# Generate and send OTP
+@app.route('/admin/send-otp', methods=['POST'])
+def admin_send_otp():
+    """Send OTP to admin email or mobile. Requires password verification."""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').lower()
+        password = data.get('password', '')
+        mobile = data.get('mobile', '')
+        delivery_method = data.get('method', 'email')  # email or sms
+        
+        if not email or not password:
+            return jsonify({"msg": "Email and password required"}), 400
+        
+        # Check if admin exists and password matches
+        admin_query = db.collection('admins').where('email', '==', email).limit(1).stream()
+        admin_doc = None
+        for doc in admin_query:
+            admin_doc = doc
+            break
+        
+        if not admin_doc:
+            return jsonify({"msg": "Admin not found"}), 404
+        admin_data = admin_doc.to_dict()
+        if admin_data.get('password') != password:
+            return jsonify({"msg": "Invalid credentials"}), 401
+        
+        # Generate OTP
+        otp = str(uuid.uuid4().hex[:6].upper())  # 6-character OTP
+        # expiry stored as UTC-aware datetime to avoid naive/aware mismatches
+        otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=10)
+        
+        # Store OTP in Firestore
+        db.collection('admin_otps').add({
+            'email': email,
+            'otp': otp,
+            'expiry': otp_expiry,
+            'createdAt': firestore.SERVER_TIMESTAMP,
+            'verified': False
+        })
+        
+        # Send OTP via email
+        if delivery_method == 'email':
+            try:
+                admin_name = admin_data.get('name', 'Admin')
+                msg = Message(
+                    subject="Your Admin Portal Login OTP",
+                    recipients=[email],
+                    html=f"""
+                    <html>
+                        <body style="font-family: Arial, sans-serif;">
+                            <div style="max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                                <h2 style="color: #2563EB;">Login Verification Code</h2>
+                                <p>Hi {admin_name},</p>
+                                <p>Your One-Time Password (OTP) for admin portal login is:</p>
+                                <div style="background-color: #f0f0f0; padding: 15px; border-radius: 5px; text-align: center; margin: 20px 0;">
+                                    <h1 style="letter-spacing: 5px; color: #2563EB; margin: 0;">{otp}</h1>
+                                </div>
+                                <p style="color: #666;">This OTP will expire in 10 minutes.</p>
+                                <p style="color: #999; font-size: 12px;">If you didn't request this OTP, please ignore this email.</p>
+                            </div>
+                        </body>
+                    </html>
+                    """
+                )
+                mail.send(msg)
+                return jsonify({"msg": "OTP sent to email", "email": email}), 200
+            except Exception as e:
+                print(f"Email sending error: {str(e)}")
+                return jsonify({"msg": "Failed to send OTP"}), 500
+        
+        return jsonify({"msg": "OTP sent", "delivery": delivery_method}), 200
+    
+    except Exception as e:
+        print(f"Error in send_otp: {str(e)}")
+        return jsonify({"msg": str(e)}), 500
+
+# Get complaints for admin's department
+@app.route('/admin/complaints', methods=['GET'])
+@jwt_required()
+def admin_get_complaints():
+    """Get all complaints for admin's department"""
+    try:
+        current_user = get_jwt_identity()
+        department = current_user.get('department')
+        status_filter = request.args.get('status', None)
+        
+        # Query complaints by department
+        query = db.collection('requests').where('department', '==', department)
+        
+        complaints = []
+        for doc in query.stream():
+            complaint_data = doc.to_dict()
+            complaint_data['id'] = doc.id
+            
+            # Filter by status if provided
+            if status_filter and complaint_data.get('status') != status_filter:
+                continue
+            
+            complaints.append(complaint_data)
+        
+        # Sort by created date (newest first)
+        complaints.sort(key=lambda x: x.get('createdAt', datetime.utcnow()), reverse=True)
+        
+        return jsonify({
+            "msg": "Complaints retrieved",
+            "count": len(complaints),
+            "complaints": complaints
+        }), 200
+    
+    except Exception as e:
+        print(f"Error fetching complaints: {str(e)}")
+        return jsonify({"msg": str(e)}), 500
+
+# Get single complaint detail
+@app.route('/admin/complaints/<complaint_id>', methods=['GET'])
+@jwt_required()
+def admin_get_complaint_detail(complaint_id):
+    """Get detailed info about a specific complaint"""
+    try:
+        doc = db.collection('requests').document(complaint_id).get()
+        
+        if not doc.exists:
+            return jsonify({"msg": "Complaint not found"}), 404
+        
+        complaint_data = doc.to_dict()
+        complaint_data['id'] = doc.id
+        
+        return jsonify({
+            "msg": "Complaint details retrieved",
+            "complaint": complaint_data
+        }), 200
+    
+    except Exception as e:
+        print(f"Error fetching complaint detail: {str(e)}")
+        return jsonify({"msg": str(e)}), 500
+
+# Update complaint status
+@app.route('/admin/complaints/<complaint_id>/status', methods=['PUT'])
+@jwt_required()
+def admin_update_complaint_status(complaint_id):
+    """Update complaint status"""
+    try:
+        data = request.get_json()
+        new_status = data.get('status')
+        notes = data.get('notes', '')
+        
+        valid_statuses = ['pending', 'in_progress', 'resolved', 'rejected']
+        if new_status not in valid_statuses:
+            return jsonify({"msg": "Invalid status"}), 400
+        
+        # Update complaint
+        db.collection('requests').document(complaint_id).update({
+            'status': new_status,
+            'lastActionDate': firestore.SERVER_TIMESTAMP,
+            'statusNotes': notes
+        })
+        
+        # Send notification email to reporter
+        doc = db.collection('requests').document(complaint_id).get()
+        if doc.exists:
+            complaint = doc.to_dict()
+            reporter_email = complaint.get('reporter_email')
+            if reporter_email:
+                status_text = new_status.replace('_', ' ').title()
+                msg = Message(
+                    subject=f"Complaint Status Update: {status_text}",
+                    recipients=[reporter_email],
+                    html=f"""
+                    <html>
+                        <body style="font-family: Arial, sans-serif;">
+                            <p>Your complaint '{complaint.get('title')}' status has been updated to: <strong>{status_text}</strong></p>
+                            <p>Notes: {notes}</p>
+                        </body>
+                    </html>
+                    """
+                )
+                mail.send(msg)
+        
+        return jsonify({"msg": "Status updated successfully"}), 200
+    
+    except Exception as e:
+        print(f"Error updating status: {str(e)}")
+        return jsonify({"msg": str(e)}), 500
+
+# Get analytics dashboard data
+@app.route('/admin/analytics', methods=['GET'])
+@jwt_required()
+def admin_get_analytics():
+    """Get analytics and statistics for admin's department"""
+    try:
+        current_user = get_jwt_identity()
+        department = current_user.get('department')
+        
+        # Get all complaints for department
+        complaints = []
+        for doc in db.collection('requests').where('department', '==', department).stream():
+            complaints.append(doc.to_dict())
+        
+        # Calculate statistics
+        total_complaints = len(complaints)
+        
+        status_counts = {}
+        priority_counts = {}
+        daily_counts = {}
+        
+        for complaint in complaints:
+            # Status distribution
+            status = complaint.get('status', 'unknown')
+            status_counts[status] = status_counts.get(status, 0) + 1
+            
+            # Priority distribution
+            priority = complaint.get('priority', 'normal')
+            priority_counts[priority] = priority_counts.get(priority, 0) + 1
+            
+            # Daily creation count
+            created_at = complaint.get('createdAt')
+            if created_at:
+                date_key = created_at.strftime('%Y-%m-%d') if isinstance(created_at, datetime) else str(created_at)[:10]
+                daily_counts[date_key] = daily_counts.get(date_key, 0) + 1
+        
+        # Calculate average resolution time
+        resolved_complaints = [c for c in complaints if c.get('status') == 'resolved']
+        avg_resolution_time = 0
+        if resolved_complaints:
+            resolution_times = []
+            for c in resolved_complaints:
+                created = c.get('createdAt')
+                updated = c.get('lastActionDate')
+                if created and updated and isinstance(created, datetime) and isinstance(updated, datetime):
+                    resolution_times.append((updated - created).days)
+            if resolution_times:
+                avg_resolution_time = sum(resolution_times) / len(resolution_times)
+        
+        # High priority unresolved
+        high_priority_unresolved = len([c for c in complaints if c.get('priority') == 'high' and c.get('status') != 'resolved'])
+        
+        return jsonify({
+            "msg": "Analytics retrieved",
+            "analytics": {
+                "total_complaints": total_complaints,
+                "status_distribution": status_counts,
+                "priority_distribution": priority_counts,
+                "daily_creation_count": daily_counts,
+                "average_resolution_days": round(avg_resolution_time, 2),
+                "high_priority_unresolved": high_priority_unresolved,
+                "resolved_count": len([c for c in complaints if c.get('status') == 'resolved']),
+                "in_progress_count": len([c for c in complaints if c.get('status') == 'in_progress']),
+                "pending_count": len([c for c in complaints if c.get('status') == 'pending'])
+            }
+        }), 200
+    
+    except Exception as e:
+        print(f"Error fetching analytics: {str(e)}")
+        return jsonify({"msg": str(e)}), 500
+
+# Serve admin portal pages
+@app.route('/admin', methods=['GET'])
+def admin_portal():
+    """Serve admin login page"""
+    return send_from_directory('static', 'admin/login.html')
+
+@app.route('/admin/<page>', methods=['GET'])
+def admin_page(page):
+    """Serve admin portal pages"""
+    try:
+        return send_from_directory('static', f'admin/{page}.html')
+    except:
+        return send_from_directory('static', 'admin/404.html'), 404
 
 # 404 HANDLER
 @app.errorhandler(404)

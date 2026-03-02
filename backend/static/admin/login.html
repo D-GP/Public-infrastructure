@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Portal - Login | Public Assets</title>
+    <link rel="stylesheet" href="/static/admin/admin-styles.css">
+</head>
+<body class="auth-body">
+    <div class="auth-container">
+        <div class="auth-box">
+            <div class="auth-header">
+                <div class="logo">🏛️</div>
+                <h1>Public Assets Admin</h1>
+                <p>Authority Management Portal</p>
+            </div>
+
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="admin@authority.gov.in" required>
+                    <span class="form-error" id="emailError"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="••••••••" required>
+                    <span class="form-error" id="passwordError"></span>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block">
+                    <span class="btn-text">Login</span>
+                    <span class="btn-loader" style="display:none;">⏳</span>
+                </button>
+
+                <div class="form-message" id="formMessage"></div>
+            </form>
+
+            <div class="auth-footer">
+                <p>New here? <a href="static/admin/register">Create an admin account</a></p>
+                <p>Having trouble logging in? <a href="#" onclick="alert('Contact your administrator')">Contact Support</a></p>
+            </div>
+        </div>
+
+        <div class="auth-sidebar">
+            <div class="sidebar-content">
+                <h3>Welcome Back!</h3>
+                <p>Manage complaints and track resolution status for your department with real-time analytics and automated reminders.</p>
+                <ul class="feature-list">
+                    <li>✓ Department-specific dashboard</li>
+                    <li>✓ Real-time complaint tracking</li>
+                    <li>✓ Automated reminders</li>
+                    <li>✓ Analytics & reports</li>
+                    <li>✓ Priority management</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/admin/admin-scripts.js"></script>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Store token and admin info (store full admin object expected by scripts)
+                    localStorage.setItem('adminToken', data.token);
+                    localStorage.setItem('admin', JSON.stringify(data.user));
+                    localStorage.setItem('adminEmail', data.user.email || email);
+                    
+                    showMessage('Login successful! Redirecting to dashboard...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/admin/dashboard';
+                    }, 800);
+                } else {
+                    showMessage(data.msg || 'Login failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+            }
+        });
+
+        function showMessage(msg, type) {
+            const msgElement = document.getElementById('formMessage');
+            msgElement.textContent = msg;
+            msgElement.className = 'form-message ' + type;
+        }
+    </script>
+</body>
+</html>

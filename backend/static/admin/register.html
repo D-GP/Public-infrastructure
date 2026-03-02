@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Admin | Public Assets</title>
+    <link rel="stylesheet" href="/static/admin/admin-styles.css">
+</head>
+<body class="auth-body">
+    <div class="auth-container">
+        <div class="auth-box">
+            <div class="auth-header">
+                <div class="logo">📝</div>
+                <h1>Create Admin Account</h1>
+                <p>Register a new administrative user</p>
+            </div>
+
+            <form id="registerForm" class="auth-form">
+                <div class="form-group">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="department">Department</label>
+                    <input type="text" id="department" name="department" required>
+                </div>
+                <div class="form-group">
+                    <label for="mobile">Mobile (optional)</label>
+                    <input type="text" id="mobile" name="mobile">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block">
+                    Register Admin
+                </button>
+                <div class="form-message" id="formMessage"></div>
+                <button type="button" class="btn btn-link btn-block" onclick="window.location.href='/admin/login'">
+                    ← Back to Login
+                </button>
+            </form>
+        </div>
+
+        <div class="auth-sidebar">
+            <div class="sidebar-content">
+                <h3>Need an account?</h3>
+                <p>Use this form to add your own administrative user for the portal. Once created, you can log in and manage complaints.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const department = document.getElementById('department').value.trim();
+            const mobile = document.getElementById('mobile').value.trim();
+            
+            const msgEl = document.getElementById('formMessage');
+            msgEl.textContent = '';
+            try {
+                const resp = await fetch('/api/admin/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name, email, password, department, mobile})
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    msgEl.textContent = 'Admin created! Redirecting to login...';
+                    msgEl.className = 'form-message success';
+                    setTimeout(() => { window.location.href = '/admin/login'; }, 2000);
+                } else {
+                    msgEl.textContent = data.msg || 'Registration failed';
+                    msgEl.className = 'form-message error';
+                }
+            } catch (err) {
+                msgEl.textContent = 'Error: ' + err.message;
+                msgEl.className = 'form-message error';
+            }
+        });
+    </script>
+</body>
+</html>
