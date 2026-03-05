@@ -246,7 +246,11 @@ def send_report_email_to_authorities(report):
     """Send department-specific email notification for new reports."""
     try:
         department_code = report.get('department', '').lower()
-        recipients = get_emails_for_department(department_code)
+        district = report.get('district', 'Pathanamthitta')
+        local_body_name = report.get('local_body_name', '')
+        department_office = report.get('department_office', '')
+        
+        recipients = get_emails_for_department(district, local_body_name, department_code, department_office)
 
         if not recipients:
             print(f"⚠️ No email addresses configured for department: {department_code}")
@@ -290,9 +294,32 @@ def send_report_email_to_authorities(report):
                             <p><strong>Priority:</strong> {report.get('priority', 'normal').upper()}</p>
                             
                             <h4 style="margin-top: 15px;">Location Information</h4>
+                            <p><strong>District:</strong> {district}</p>
+                            <p><strong>Local Body:</strong> {local_body_name} ({report.get('local_body_type', 'Not specified')})</p>
+                            <p><strong>Department Office:</strong> {department_office or 'District Default'}</p>
+                            <p><strong>Place:</strong> {report.get('place', 'Not provided')}</p>
                             <p><strong>Coordinates:</strong> {report.get('location_text', 'Not provided')}</p>
                             <p><strong>Landmark:</strong> {report.get('landmark', 'Not specified')}</p>
                         </div>
+                    </div>
+
+                    <div style=\"background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;\">
+                        <h4 style=\"margin: 0 0 10px 0; color: #856404;\">Reporter Information</h4>
+                        <p style=\"margin: 5px 0;\"><strong>Name:</strong> {report.get('reporter_name', '')}</p>
+                        <p style=\"margin: 5px 0;\"><strong>Email:</strong> {report.get('reporter_email', '')}</p>
+                    </div>
+
+                    <div style=\"background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0;\">
+                        <h4 style=\"margin: 0 0 10px 0; color: #0c5460;\">Action Required</h4>
+                        <p>Please review this report and take appropriate action within {get_response_time_for_department(district, local_body_name, department_code, department_office)} hours.</p>
+                        <p><strong>Expected Response Time:</strong> {get_response_time_for_department(district, local_body_name, department_code, department_office)} hours</p>
+                    </div>
+
+                    <div style=\"text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;\">
+                        <p style=\"color: #666; font-size: 12px;\">
+                            This is an automated notification from the Public Assets Reporting System.<br>
+                            Please do not reply to this email directly.
+                        </p>
                     </div>
                 </div>
             </body>
@@ -437,6 +464,71 @@ def send_escalation_email(report):
         return False
 
 
+
+def send_cooloff_warning_email(report):
+    try:
+        department_code = report.get('department', '').lower()
+        recipients = get_emails_for_department('Pathanamthitta', '', department_code, '')
+        if not recipients:
+            return False
+        subject = f"⚠️ URGENT: 15-Day Cool-off Warning for Report {report.get('id')}"
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif;">
+                <h2 style="color: #d9534f;">⚠️ Escalation Warning ⚠️</h2>
+                <p>Attention {department_code.upper()} Department,</p>
+                <p>This is an automated warning from the Public Assets Reporting System.</p>
+                <p>Report <strong>{report.get('id')}</strong> has been inactive for 15 days.</p>
+                <p><strong>Title:</strong> {report.get('title')}</p>
+                <hr>
+                <p><strong>ACTION REQUIRED:</strong> You must resolve this report or log a "Reason for Delay" in the admin dashboard within 15 days, or this issue will be automatically escalated to the State level.</p>
+            </body>
+        </html>
+        """
+        msg = Message(subject=subject, recipients=recipients, html=html_body)
+        mail.send(msg)
+        print(f"✓ Cool-off warning sent to {department_code}")
+        return True
+    except Exception as e:
+        print(f"❌ Cool-off email failed: {e}")
+        return False
+
+def send_escalation_email(report):
+    try:
+        department_code = report.get('department', '').lower()
+        # Fallback to general district email if escalating
+        recipients = get_emails_for_department('Pathanamthitta', '', department_code, '', escalation=True) if 'escalation' in str(get_emails_for_department) else get_emails_for_department('Pathanamthitta', '', department_code, '')
+        cc_recipients = get_emails_for_department('Pathanamthitta', '', department_code, '')
+        if not recipients:
+            return False
+        subject = f"🚨 ESCALATED: District Non-Compliance on Report {report.get('id')}"
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif;">
+                <div style="background-color: #d9534f; color: white; padding: 20px; text-align: center;">
+                    <h1 style="margin: 0;">🚨 ESCALATION NOTICE</h1>
+                </div>
+                <div style="padding: 20px; border: 1px solid #ddd;">
+                    <p>To the State Ministry / Higher Authority,</p>
+                    <p>This report has been automatically escalated to your office because the local district department failed to respond within the mandatory 30-day timeframe.</p>
+                    <h3 style="color: #2563EB;">Report Details</h3>
+                    <p><strong>ID:</strong> {report.get('id')}</p>
+                    <p><strong>Department:</strong> {department_code.upper()}</p>
+                    <p><strong>Title:</strong> {report.get('title')}</p>
+                    <p><strong>Description:</strong> {report.get('description', '')}</p>
+                    <p><strong>Location:</strong> {report.get('location_text', 'Not provided')}</p>
+                </div>
+            </body>
+        </html>
+        """
+        msg = Message(subject=subject, recipients=recipients, cc=cc_recipients, html=html_body)
+        mail.send(msg)
+        print(f"✓ Escalation email sent to {department_code} higher authorities")
+        return True
+    except Exception as e:
+        print(f"❌ Escalation email failed: {e}")
+        return False
+
 def send_confirmation_email_to_reporter(report):
     """Send confirmation email to the person who reported the issue with the reported content."""
     try:
@@ -538,6 +630,66 @@ def send_completion_email_to_reporter(report):
         print(f"❌ Failed to send completion email: {str(e)}")
         return False
 
+def send_otp_email(email, otp):
+    """Send OTP email for verification."""
+    try:
+        subject = "Your Verification OTP - Public Assets"
+        html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #2563EB; color: white; padding: 20px; text-align: center;">
+                <h2 style="margin: 0;">Email Verification</h2>
+            </div>
+            <div style="padding: 20px; border: 1px solid #ddd; borderRadius: 0 0 8px 8px;">
+                <p>Hello,</p>
+                <p>Please use the following One-Time Password (OTP) to verify your email address. This OTP is valid for 10 minutes.</p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <span style="font-size: 32px; font-weight: bold; background-color: #f1f5f9; padding: 10px 20px; border-radius: 5px; letter-spacing: 5px;">{otp}</span>
+                </div>
+                <p>If you did not request this verification, please ignore this email.</p>
+            </div>
+        </div>
+        """
+        msg = Message(subject=subject, recipients=[email], html=html)
+        mail.send(msg)
+        print(f"✓ OTP email sent to {email}")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to send OTP email: {str(e)}")
+        return False
+
+@app.route('/api/send-otp', methods=['POST'])
+@limiter.limit("5 per minute")
+@handle_errors
+def send_otp():
+    if db is None:
+        return jsonify({"msg": "Database not available"}), 503
+    
+    data = request.get_json()
+    email = data.get('email', '').strip()
+    
+    if not email or not validate_email(email):
+        return jsonify({"msg": "Valid email is required"}), 400
+        
+    # Generate 6-digit OTP
+    import random
+    otp = str(random.randint(100000, 999999))
+    
+    # Store OTP in Firestore with expiration
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    
+    # Check for existing OTP and update or create new
+    otp_ref = db.collection('otps').document(email)
+    otp_ref.set({
+        'otp': otp,
+        'expires_at': expires_at,
+        'created_at': firestore.SERVER_TIMESTAMP
+    })
+    
+    if send_otp_email(email, otp):
+        return jsonify({"msg": "OTP sent successfully"}), 200
+    else:
+        return jsonify({"msg": "Failed to send OTP"}), 500
+
 # REGISTER ENDPOINT
 @app.route('/register', methods=['POST'])
 @handle_errors
@@ -552,13 +704,17 @@ def register():
     age = data.get('age')
     phone = data.get('phone', '').strip()
     gender = data.get('gender', '')
-    address = data.get('address', '').strip()
+    district = data.get('district', 'Pathanamthitta').strip()
+    local_body_type = data.get('local_body_type', '').strip()
+    local_body_name = data.get('local_body_name', '').strip()
+    place = data.get('place', '').strip()
     email = data.get('email', '').strip()
     password = data.get('password', '')
+    otp = data.get('otp', '').strip()
 
     # Validate required fields
-    if not all([name, age, phone, gender, address, email, password]):
-        return jsonify({"msg": "All fields are required"}), 400
+    if not all([name, age, phone, gender, district, local_body_type, local_body_name, place, email, password, otp]):
+        return jsonify({"msg": "All fields including OTP are required"}), 400
 
     # Validate individual fields
     if not validate_name(name):
@@ -579,10 +735,23 @@ def register():
     if gender not in ['Male', 'Female']:
         return jsonify({"msg": "Invalid gender selection"}), 400
 
-    if not validate_address(address):
-        return jsonify({"msg": "Address must be at least 5 characters"}), 400
+    if len(place) < 3:
+        return jsonify({"msg": "Place must be at least 3 characters"}), 400
 
     try:
+        # Verify OTP
+        otp_doc = db.collection('otps').document(email).get()
+        if not otp_doc.exists:
+            return jsonify({"msg": "OTP not requested or expired. Please request a new OTP."}), 400
+            
+        otp_data = otp_doc.to_dict()
+        if otp_data.get('otp') != otp:
+            return jsonify({"msg": "Invalid OTP. Please try again."}), 400
+            
+        expires_at = otp_data.get('expires_at')
+        if expires_at and isinstance(expires_at, datetime) and datetime.now(timezone.utc) > expires_at:
+            return jsonify({"msg": "OTP expired. Please request a new OTP."}), 400
+
         # Check if email already exists
         existing_users = db.collection('users').where('email', '==', email).stream()
         if any(existing_users):
@@ -594,7 +763,10 @@ def register():
             'age': int(age),
             'phone': phone,
             'gender': gender,
-            'address': address,
+            'district': district,
+            'local_body_type': local_body_type,
+            'local_body_name': local_body_name,
+            'place': place,
             'email': email,
             'password': bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
             'created_at': firestore.SERVER_TIMESTAMP
@@ -602,6 +774,9 @@ def register():
 
         db.collection('users').add(user_data)
         print(f"✓ New user registered: {email}")
+
+        # Delete OTP after successful registration
+        db.collection('otps').document(email).delete()
 
         # Send welcome email
         email_sent = send_welcome_email(email, name)
@@ -937,11 +1112,16 @@ def create_request():
             description = form.get('description')
             location_text = form.get('location')
             department = form.get('department')
+            department_office = form.get('department_office', '')
             category = form.get('category', department)
             priority = form.get('priority', 'normal')
             reporter_name = form.get('reporter_name')
             reporter_email = form.get('reporter_email')
             landmark = form.get('landmark')
+            otp = form.get('otp', '').strip()
+            
+            if not reporter_email or not otp:
+                return jsonify({"msg": "Reporter email and OTP are required"}), 400
 
             images = []
             is_explicit = False
@@ -969,6 +1149,7 @@ def create_request():
                 'location': {'text': location_text},
                 'location_text': location_text,
                 'department': department,
+                'department_office': department_office,
                 'category': category,
                 'priority': priority,
                 'status': 'under_review',  # Placed in moderation queue first
@@ -978,6 +1159,10 @@ def create_request():
                 'landmark': landmark,
                 'images': images,
                 'lastReminderAt': None,
+                'escalationLevel': 1,
+                'isCoolOffPeriod': False,
+                'lastActionDate': firestore.SERVER_TIMESTAMP,
+                'escalationHistory': [],
                 'userId': request.form.get('userId'), # Add userId from form
                 'escalationLevel': 1,
                 'isCoolOffPeriod': False,
@@ -987,9 +1172,12 @@ def create_request():
         else:
             data = request.get_json()
             # Validate required fields
-            required_fields = ['title', 'description', 'location', 'department', 'priority']
+            required_fields = ['title', 'description', 'location', 'department', 'priority', 'otp', 'reporter_email']
             if not data or not all(field in data for field in required_fields):
                 return jsonify({"msg": "Missing required fields"}), 400
+
+            otp = data.get('otp', '').strip()
+            reporter_email = data.get('reporter_email')
 
             request_data = {
                 'title': data.get('title'),
@@ -997,6 +1185,7 @@ def create_request():
                 'location': data.get('location'),
                 'location_text': data.get('location') if isinstance(data.get('location'), str) else '',
                 'department': data.get('department'),
+                'department_office': data.get('department_office', ''),
                 'category': data.get('category', data.get('department')),
                 'priority': data.get('priority', 'normal'),
                 'status': 'under_review',  # Placed in moderation queue first
@@ -1012,6 +1201,25 @@ def create_request():
                 'lastActionDate': firestore.SERVER_TIMESTAMP,
                 'escalationHistory': []
             }
+
+        # Verify OTP before saving
+        otp_doc = db.collection('otps').document(reporter_email).get()
+        if not otp_doc.exists:
+            return jsonify({"msg": "OTP not requested or expired. Please request a new OTP."}), 400
+            
+        otp_data = otp_doc.to_dict()
+        if otp_data.get('otp') != otp:
+            return jsonify({"msg": "Invalid OTP. Please try again."}), 400
+            
+        expires_at = otp_data.get('expires_at')
+        if expires_at and isinstance(expires_at, datetime) and datetime.now(timezone.utc) > expires_at:
+            return jsonify({"msg": "OTP expired. Please request a new OTP."}), 400
+            
+        # Delete OTP after successful verification
+        try:
+            db.collection('otps').document(reporter_email).delete()
+        except:
+            pass
 
         # ---- NEW CLUSTERING LOGIC ----
         try:
@@ -1161,6 +1369,7 @@ def update_request(request_id):
         print(f"Error updating request: {str(e)}")
         return jsonify({"msg": "Failed to update request", "error": str(e)}), 500
 
+
 # ADD NOTE / REASON FOR DELAY ENDPOINT
 @app.route('/api/requests/<request_id>/note', methods=['PUT'])
 @handle_errors
@@ -1271,6 +1480,7 @@ def reminder_worker_loop():
                         print(f"❌ Failed to send reminder for {doc.id}: {str(e)}")
         except Exception as e:
             print(f"Reminder worker error: {str(e)}")
+
 
         # ---- ESCALATION LOGIC CHECK ----
         try:
