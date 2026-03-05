@@ -79,21 +79,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     super.dispose();
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return Color(0xFFFFB74D);
-      case 'in_progress':
-        return Color(0xFF26A69A);
-      case 'resolved':
-        return Color(0xFF66BB6A);
-      case 'closed':
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final report = widget.report;
@@ -119,25 +104,12 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Status Chip
-            Align(
-              alignment: Alignment.centerRight,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(report['status'] ?? 'pending'),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  (report['status'] ?? 'PENDING').toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+            // Status Timeline
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: _buildStatusTimeline(
+                report['status'] ?? 'pending',
+                report['escalationLevel'] ?? 0,
               ),
             ),
             const SizedBox(height: 10),
@@ -435,6 +407,121 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildStatusTimeline(String status, int escalationLevel) {
+    status = status.toLowerCase();
+
+    // Define the full set of possible logical steps based on the report's journey
+    List<Map<String, dynamic>> steps = [
+      {
+        'label': 'Pending',
+        'isActive': true,
+        'isCompleted': status != 'pending',
+      },
+    ];
+
+    if (escalationLevel > 0) {
+      steps.add({
+        'label': 'Escalated',
+        'isActive': true,
+        'isCompleted': status == 'resolved' || status == 'closed',
+      });
+    }
+
+    steps.add({
+      'label': 'In Progress',
+      'isActive': status != 'pending',
+      'isCompleted': status == 'resolved' || status == 'closed',
+    });
+    steps.add({
+      'label': 'Resolved',
+      'isActive': status == 'resolved' || status == 'closed',
+      'isCompleted': status == 'closed',
+    });
+
+    // Optional Closed Step
+    if (status == 'closed') {
+      steps.last['isCompleted'] = true;
+      steps.add({'label': 'Closed', 'isActive': true, 'isCompleted': true});
+    }
+
+    return Row(
+      children: List.generate(steps.length * 2 - 1, (index) {
+        if (index.isEven) {
+          final stepIndex = index ~/ 2;
+          final step = steps[stepIndex];
+          final isActive = step['isActive'] as bool;
+          final isCompleted = step['isCompleted'] as bool;
+
+          Color stepColor = Colors.grey.shade300;
+          if (isCompleted) {
+            stepColor = const Color(0xFF26A69A); // Teal for completed
+          } else if (isActive) {
+            stepColor = const Color(0xFFFFB74D); // Orange for active/current
+          }
+
+          return Expanded(
+            flex: 0,
+            child: Column(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: isCompleted
+                        ? stepColor
+                        : (isActive ? Colors.white : Colors.grey.shade100),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: stepColor,
+                      width: isActive && !isCompleted ? 3 : 0,
+                    ),
+                  ),
+                  child: Center(
+                    child: isCompleted
+                        ? const Icon(Icons.check, color: Colors.white, size: 18)
+                        : (isActive
+                              ? Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: stepColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                )
+                              : const SizedBox()),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  step['label'] as String,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isActive ? Colors.black87 : Colors.grey,
+                    fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else {
+          // Connector line
+          final prevStepCompleted = steps[index ~/ 2]['isCompleted'] as bool;
+          return Expanded(
+            child: Container(
+              height: 2,
+              color: prevStepCompleted
+                  ? const Color(0xFF26A69A)
+                  : Colors.grey.shade300,
+              margin: const EdgeInsets.only(
+                bottom: 24,
+              ), // Offset to align with circles not text
+            ),
+          );
+        }
+      }),
     );
   }
 }
