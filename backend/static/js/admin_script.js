@@ -102,7 +102,23 @@ let allReports = [];
 
 async function loadDashboardData() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/requests`);
+        // send department filter if we know the admin's department
+        const admin = JSON.parse(localStorage.getItem('adminUser') || '{}');
+        let url = `${API_BASE_URL}/api/requests`;
+        if (admin && admin.department) {
+            url += `?department=${encodeURIComponent(admin.department)}`;
+            // also set the dept filter dropdown to this value and disable it
+            const deptFilter = document.getElementById('deptFilter');
+            if (deptFilter) {
+                deptFilter.value = admin.department;
+                deptFilter.disabled = true;
+            }
+        }
+
+        const token = localStorage.getItem('adminToken');
+        const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+
+        const response = await fetch(url, { headers });
         const data = await response.json();
 
         if (data.requests) {
@@ -254,9 +270,13 @@ async function updateStatus(id, newStatus) {
     if (!confirm(`Are you sure you want to mark this report as ${newStatus}?`)) return;
 
     try {
+        const token = localStorage.getItem('adminToken');
+        const headers = Object.assign({ 'Content-Type': 'application/json' },
+            token ? { 'Authorization': 'Bearer ' + token } : {});
+
         const response = await fetch(`${API_BASE_URL}/api/requests/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ status: newStatus })
         });
 

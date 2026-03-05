@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics & Reports | Public Assets Admin</title>
+    <link rel="stylesheet" href="/static/admin/admin-styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-box">
+                    <span class="logo">🏛️</span>
+                    <span class="logo-text">Public Assets</span>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/admin/dashboard" class="nav-link" data-page="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/admin/complaints" class="nav-link" data-page="complaints">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Complaints</span>
+                </a>
+                <a href="/admin/analytics" class="nav-link active" data-page="analytics">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Analytics</span>
+                </a>
+                <a href="#" class="nav-link" onclick="adminLogout()">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="admin-profile" id="adminProfile">
+                    <div class="admin-avatar">👤</div>
+                    <div class="admin-info">
+                        <p class="admin-name">Admin</p>
+                        <p class="admin-dept">Department</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-title">
+                    <h1>Analytics & Reports</h1>
+                    <p>Statistical insights and performance metrics for your department</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-outline" onclick="exportReport()">📥 Export Report</button>
+                    <button class="btn-icon" onclick="refreshAnalytics()">🔄</button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Key Metrics -->
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-icon">📊</div>
+                        <div class="metric-content">
+                            <p class="metric-label">Total Complaints</p>
+                            <h2 id="metricTotal">0</h2>
+                            <p class="metric-change">This month</p>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">✅</div>
+                        <div class="metric-content">
+                            <p class="metric-label">Resolution Rate</p>
+                            <h2 id="metricResolution">0%</h2>
+                            <p class="metric-change">Resolved complaints</p>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">⚡</div>
+                        <div class="metric-content">
+                            <p class="metric-label">Avg Response Time</p>
+                            <h2 id="metricResponseTime">0</h2>
+                            <p class="metric-change">Days to resolve</p>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">🚨</div>
+                        <div class="metric-content">
+                            <p class="metric-label">High Priority</p>
+                            <h2 id="metricHighPriority">0</h2>
+                            <p class="metric-change">Unresolved</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="charts-grid large">
+                    <!-- Status Over Time -->
+                    <div class="chart-card full-width">
+                        <h3>Complaint Creation Trend</h3>
+                        <canvas id="trendChart"></canvas>
+                    </div>
+
+                    <!-- Status Distribution -->
+                    <div class="chart-card">
+                        <h3>Status Distribution</h3>
+                        <canvas id="statusChartAnalytics"></canvas>
+                    </div>
+
+                    <!-- Priority Distribution -->
+                    <div class="chart-card">
+                        <h3>Priority Distribution</h3>
+                        <canvas id="priorityChartAnalytics"></canvas>
+                    </div>
+
+                    <!-- Department Performance -->
+                    <div class="chart-card full-width">
+                        <h3>Performance Summary</h3>
+                        <div class="performance-bars">
+                            <div class="performance-item">
+                                <div class="performance-label">
+                                    <span>Response Time</span>
+                                    <span id="performanceResponse">Excellent</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div id="progressResponse" class="progress-fill progress-excellent" style="width: 90%"></div>
+                                </div>
+                            </div>
+                            <div class="performance-item">
+                                <div class="performance-label">
+                                    <span>Resolution Rate</span>
+                                    <span id="performanceResolution">Good</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div id="progressResolution" class="progress-fill progress-good" style="width: 75%"></div>
+                                </div>
+                            </div>
+                            <div class="performance-item">
+                                <div class="performance-label">
+                                    <span>Citizen Satisfaction</span>
+                                    <span id="performanceSatisfaction">Good</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div id="progressSatisfaction" class="progress-fill progress-good" style="width: 80%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Report -->
+                <div class="card detailed-report">
+                    <div class="card-header">
+                        <h3>Detailed Statistics</h3>
+                    </div>
+
+                    <div class="report-grid">
+                        <div class="report-section">
+                            <h4>By Status</h4>
+                            <table class="report-table">
+                                <tr>
+                                    <td>Pending:</td>
+                                    <td id="statPending">0</td>
+                                </tr>
+                                <tr>
+                                    <td>In Progress:</td>
+                                    <td id="statInProgress">0</td>
+                                </tr>
+                                <tr>
+                                    <td>Resolved:</td>
+                                    <td id="statResolved">0</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <div class="report-section">
+                            <h4>By Priority</h4>
+                            <table class="report-table">
+                                <tr>
+                                    <td>High:</td>
+                                    <td id="priorityHighCount">0</td>
+                                </tr>
+                                <tr>
+                                    <td>Medium:</td>
+                                    <td id="priorityMediumCount">0</td>
+                                </tr>
+                                <tr>
+                                    <td>Low:</td>
+                                    <td id="priorityLowCount">0</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <div class="report-section">
+                            <h4>Performance Metrics</h4>
+                            <table class="report-table">
+                                <tr>
+                                    <td>Avg Resolution Time:</td>
+                                    <td id="metricAvgResolution">0 days</td>
+                                </tr>
+                                <tr>
+                                    <td>Unresolved Count:</td>
+                                    <td id="metricUnresolved">0</td>
+                                </tr>
+                                <tr>
+                                    <td>Total Reports:</td>
+                                    <td id="metricTotalReports">0</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recommendations -->
+                <div class="card recommendations">
+                    <div class="card-header">
+                        <h3>📋 Recommendations</h3>
+                    </div>
+                    <div id="recommendationsList" class="recommendations-list">
+                        <p style="color: #999;">Loading recommendations...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/admin/admin-scripts.js"></script>
+    <script>
+        let analyticsData = null;
+
+        async function initAnalytics() {
+            checkAdminAuth();
+            loadAdminInfo();
+            await loadAnalytics();
+        }
+
+        async function loadAnalytics() {
+            try {
+                const response = await adminFetch('/admin/analytics', { method: 'GET' });
+                if (!response) return;
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/admin/login';
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                analyticsData = data.analytics;
+                updateAnalytics();
+
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+            }
+        }
+
+        function updateAnalytics() {
+            const analytics = analyticsData;
+
+            // Update metrics
+            document.getElementById('metricTotal').textContent = analytics.total_complaints;
+            const resolutionRate = analytics.total_complaints > 0 
+                ? Math.round((analytics.resolved_count / analytics.total_complaints) * 100)
+                : 0;
+            document.getElementById('metricResolution').textContent = resolutionRate + '%';
+            document.getElementById('metricResponseTime').textContent = Math.round(analytics.average_resolution_days) || '0';
+            document.getElementById('metricHighPriority').textContent = analytics.high_priority_unresolved;
+
+            // Update stats
+            document.getElementById('statPending').textContent = analytics.pending_count;
+            document.getElementById('statInProgress').textContent = analytics.in_progress_count;
+            document.getElementById('statResolved').textContent = analytics.resolved_count;
+
+            // Priority stats
+            document.getElementById('priorityHighCount').textContent = analytics.priority_distribution.high || 0;
+            document.getElementById('priorityMediumCount').textContent = analytics.priority_distribution.medium || 0;
+            document.getElementById('priorityLowCount').textContent = analytics.priority_distribution.low || 0;
+
+            // Metrics
+            document.getElementById('metricAvgResolution').textContent = analytics.average_resolution_days + ' days';
+            const unresolved = analytics.pending_count + analytics.in_progress_count;
+            document.getElementById('metricUnresolved').textContent = unresolved;
+            document.getElementById('metricTotalReports').textContent = analytics.total_complaints;
+
+            // Create charts
+            createChartsAnalytics();
+
+            // Generate recommendations
+            generateRecommendations();
+        }
+
+        function createChartsAnalytics() {
+            const analytics = analyticsData;
+
+            // Trend Chart
+            const trendCtx = document.getElementById('trendChart').getContext('2d');
+            const dailyData = analytics.daily_creation_count;
+            new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: Object.keys(dailyData).slice(-30), // Last 30 days
+                    datasets: [{
+                        label: 'New Complaints',
+                        data: Object.values(dailyData).slice(-30),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: true, position: 'top' }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            // Status Distribution
+            const statusCtx = document.getElementById('statusChartAnalytics').getContext('2d');
+            new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(analytics.status_distribution),
+                    datasets: [{
+                        data: Object.values(analytics.status_distribution),
+                        backgroundColor: ['#fbbf24', '#3b82f6', '#10b981', '#ef4444'],
+                        borderColor: ['#f59e0b', '#2563eb', '#059669', '#dc2626'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+
+            // Priority Distribution
+            const priorityCtx = document.getElementById('priorityChartAnalytics').getContext('2d');
+            new Chart(priorityCtx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(analytics.priority_distribution),
+                    datasets: [{
+                        data: Object.values(analytics.priority_distribution),
+                        backgroundColor: ['#ef4444', '#f97316', '#fbbf24', '#3b82f6'],
+                        borderColor: ['#dc2626', '#ea580c', '#f59e0b', '#2563eb'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        function generateRecommendations() {
+            const analytics = analyticsData;
+            const recommendations = [];
+
+            const total = analytics.total_complaints;
+            const pending = analytics.pending_count;
+            const highPriority = analytics.high_priority_unresolved;
+            const avgResolution = analytics.average_resolution_days;
+
+            if (pending > total * 0.3) {
+                recommendations.push({
+                    type: 'warning',
+                    text: '⚠️ High pending complaints: Over 30% of complaints are pending. Consider prioritizing them.'
+                });
+            }
+
+            if (highPriority > 5) {
+                recommendations.push({
+                    type: 'alert',
+                    text: '🚨 Multiple high-priority cases: ' + highPriority + ' high-priority complaints need immediate attention.'
+                });
+            }
+
+            if (avgResolution > 15) {
+                recommendations.push({
+                    type: 'warning',
+                    text: '⏱️ Average resolution time is ' + avgResolution + ' days. Target to reduce it below 10 days.'
+                });
+            }
+
+            if (pending + analytics.in_progress_count === 0) {
+                recommendations.push({
+                    type: 'success',
+                    text: '🎉 Excellent! All complaints have been resolved.'
+                });
+            }
+
+            if (recommendations.length === 0) {
+                recommendations.push({
+                    type: 'info',
+                    text: 'ℹ️ Department performance is good. Continue monitoring for improvements.'
+                });
+            }
+
+            const list = document.getElementById('recommendationsList');
+            list.innerHTML = recommendations.map(rec => `
+                <div class="recommendation-item recommendation-${rec.type}">
+                    ${rec.text}
+                </div>
+            `).join('');
+        }
+
+        function refreshAnalytics() {
+            loadAnalytics();
+        }
+
+        function exportReport() {
+            alert('Report export feature coming soon!');
+        }
+
+        function loadAdminInfo() {
+            const admin = JSON.parse(localStorage.getItem('admin') || '{}');
+            document.querySelector('.admin-name').textContent = admin.name || 'Admin';
+            document.querySelector('.admin-dept').textContent = admin.department || 'Department';
+        }
+
+        window.addEventListener('DOMContentLoaded', initAnalytics);
+    </script>
+</body>
+</html>

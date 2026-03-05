@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complaints Management | Public Assets Admin</title>
+    <link rel="stylesheet" href="/static/admin/admin-styles.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-box">
+                    <span class="logo">🏛️</span>
+                    <span class="logo-text">Public Assets</span>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/admin/dashboard" class="nav-link" data-page="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/admin/complaints" class="nav-link active" data-page="complaints">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Complaints</span>
+                </a>
+                <a href="/admin/analytics" class="nav-link" data-page="analytics">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Analytics</span>
+                </a>
+                <a href="#" class="nav-link" onclick="adminLogout()">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="admin-profile" id="adminProfile">
+                    <div class="admin-avatar">👤</div>
+                    <div class="admin-info">
+                        <p class="admin-name">Admin</p>
+                        <p class="admin-dept">Department</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-title">
+                    <h1>Complaints Management</h1>
+                    <p>View and manage all complaints for your department</p>
+                </div>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="Search complaints...">
+                        <button class="btn-icon">🔍</button>
+                    </div>
+                    <button class="btn-icon" onclick="refreshComplaints()">🔄</button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Filters -->
+                <div class="filters-bar">
+                    <div class="filter-group">
+                        <label>Filter by Status:</label>
+                        <select id="statusFilter" onchange="applyFilters()">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Filter by Priority:</label>
+                        <select id="priorityFilter" onchange="applyFilters()">
+                            <option value="">All Priority</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Sort by:</label>
+                        <select id="sortFilter" onchange="applyFilters()">
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                            <option value="priority">Highest Priority</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Complaints List View -->
+                <div class="card complaints-card">
+                    <div class="card-header">
+                        <h3>Complaints List</h3>
+                        <span class="complaint-count">Total: <strong id="complaintCount">0</strong></span>
+                    </div>
+
+                    <div class="complaints-list" id="complaintsList">
+                        <div style="padding: 40px; text-align: center; color: #999;">
+                            <p>📋 Loading complaints...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Complaint Detail Modal -->
+    <div class="modal" id="complaintDetailModal">
+        <div class="modal-content modal-lg">
+            <button class="modal-close" onclick="closeModal('complaintDetailModal')">&times;</button>
+
+            <div class="modal-header">
+                <h2 id="modalTitle">Complaint Details</h2>
+                <span id="modalPriority" class="priority-badge"></span>
+                <span id="modalStatus" class="status-badge"></span>
+            </div>
+
+            <div class="modal-body">
+                <div class="detail-section">
+                    <h4>Issue Description</h4>
+                    <p id="complaintDescription"></p>
+                </div>
+
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <label>Location</label>
+                        <p id="complaintLocation"></p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Reporter</label>
+                        <p id="complaintReporter"></p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Created Date</label>
+                        <p id="complaintDate"></p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Total Reports</label>
+                        <p id="complaintReports">1</p>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h4>Attached Images</h4>
+                    <div class="image-gallery" id="imageGallery">
+                        <p style="color: #999;">No images attached</p>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h4>Update Status</h4>
+                    <form id="updateStatusForm" class="inline-form">
+                        <select id="newStatus" required>
+                            <option value="">Select new status...</option>
+                            <option value="pending">Pending</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                        <textarea id="updateNotes" placeholder="Add notes about this update..." style="margin-top: 10px;"></textarea>
+                        <button type="submit" class="btn btn-success">Update Status</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/admin/admin-scripts.js"></script>
+    <script>
+        let allComplaints = [];
+        let filteredComplaints = [];
+
+        async function initComplaints() {
+            checkAdminAuth();
+            loadAdminInfo();
+            await loadComplaints();
+        }
+
+        async function loadComplaints() {
+            try {
+                const response = await adminFetch('/admin/complaints', { method: 'GET' });
+                if (!response) return;
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/admin/login';
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                allComplaints = data.complaints || [];
+                filteredComplaints = [...allComplaints];
+                displayComplaints();
+
+            } catch (error) {
+                console.error('Error loading complaints:', error);
+            }
+        }
+
+        function displayComplaints() {
+            const container = document.getElementById('complaintsList');
+            document.getElementById('complaintCount').textContent = filteredComplaints.length;
+
+            if (filteredComplaints.length === 0) {
+                container.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;"><p>📭 No complaints found</p></div>';
+                return;
+            }
+
+            container.innerHTML = filteredComplaints.map(complaint => `
+                <div class="complaint-card">
+                    <div class="complaint-header">
+                        <div>
+                            <h4>${complaint.title}</h4>
+                            <p class="complaint-id">ID: ${complaint.id.substring(0, 8)}...</p>
+                        </div>
+                        <div class="complaint-badges">
+                            <span class="priority-badge priority-${complaint.priority}">${complaint.priority}</span>
+                            <span class="status-badge status-${complaint.status}">${complaint.status}</span>
+                        </div>
+                    </div>
+
+                    <div class="complaint-body">
+                        <p><strong>📍 Location:</strong> ${complaint.location_text || complaint.location?.text || 'N/A'}</p>
+                        <p><strong>👤 Reporter:</strong> ${complaint.reporter_name || 'Anonymous'} (${complaint.reporter_email || 'N/A'})</p>
+                        <p class="complaint-desc">${complaint.description.substring(0, 150)}...</p>
+                    </div>
+
+                    <div class="complaint-footer">
+                        <span class="complaint-meta">
+                            📅 ${new Date(complaint.createdAt?.seconds * 1000 || complaint.createdAt).toLocaleDateString()}
+                        </span>
+                        <span class="complaint-meta">
+                            👥 ${complaint.upvotes || 1} report(s)
+                        </span>
+                        <button class="btn btn-small btn-primary" onclick="viewComplaintDetail('${complaint.id}')">View Details</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function viewComplaintDetail(complaintId) {
+            const token = localStorage.getItem('adminToken');
+            try {
+                const response = await fetch(`/admin/complaints/${complaintId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+                const complaint = data.complaint;
+
+                // Populate modal
+                document.getElementById('modalTitle').textContent = complaint.title;
+                document.getElementById('modalPriority').textContent = complaint.priority;
+                document.getElementById('modalPriority').className = `priority-badge priority-${complaint.priority}`;
+                document.getElementById('modalStatus').textContent = complaint.status;
+                document.getElementById('modalStatus').className = `status-badge status-${complaint.status}`;
+                document.getElementById('complaintDescription').textContent = complaint.description;
+                document.getElementById('complaintLocation').textContent = complaint.location_text || complaint.location?.text || 'N/A';
+                document.getElementById('complaintReporter').textContent = `${complaint.reporter_name} (${complaint.reporter_email})`;
+                document.getElementById('complaintDate').textContent = new Date(complaint.createdAt?.seconds * 1000 || complaint.createdAt).toLocaleString();
+                document.getElementById('complaintReports').textContent = complaint.upvotes || 1;
+
+                // Display images
+                const gallery = document.getElementById('imageGallery');
+                if (complaint.images && complaint.images.length > 0) {
+                    gallery.innerHTML = complaint.images.map(img => `
+                        <div class="image-item">
+                            <img src="${img}" alt="Complaint image" onclick="expandImage('${img}')">
+                        </div>
+                    `).join('');
+                } else {
+                    gallery.innerHTML = '<p style="color: #999;">No images attached</p>';
+                }
+
+                // Store current complaint ID for update
+                document.getElementById('updateStatusForm').dataset.complaintId = complaintId;
+                document.getElementById('newStatus').value = complaint.status;
+
+                // Show modal
+                openModal('complaintDetailModal');
+
+            } catch (error) {
+                console.error('Error loading complaint detail:', error);
+                alert('Error loading complaint details');
+            }
+        }
+
+        document.getElementById('updateStatusForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const complaintId = e.target.dataset.complaintId;
+            const newStatus = document.getElementById('newStatus').value;
+            const notes = document.getElementById('updateNotes').value;
+            const token = localStorage.getItem('adminToken');
+
+            try {
+                const response = await fetch(`/admin/complaints/${complaintId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ status: newStatus, notes })
+                });
+
+                if (response.ok) {
+                    alert('Status updated successfully!');
+                    closeModal('complaintDetailModal');
+                    await loadComplaints();
+                } else {
+                    alert('Failed to update status');
+                }
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert('Error updating status');
+            }
+        });
+
+        function expandImage(imageSrc) {
+            const img = new Image();
+            img.src = imageSrc;
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '600px';
+            window.open(imageSrc, '_blank');
+        }
+
+        function applyFilters() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const priorityFilter = document.getElementById('priorityFilter').value;
+            const sortFilter = document.getElementById('sortFilter').value;
+
+            filteredComplaints = allComplaints.filter(complaint => {
+                if (statusFilter && complaint.status !== statusFilter) return false;
+                if (priorityFilter && complaint.priority !== priorityFilter) return false;
+                return true;
+            });
+
+            // Apply sorting
+            if (sortFilter === 'oldest') {
+                filteredComplaints.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+            } else if (sortFilter === 'priority') {
+                const priorityOrder = { high: 1, medium: 2, low: 3 };
+                filteredComplaints.sort((a, b) => (priorityOrder[a.priority] || 3) - (priorityOrder[b.priority] || 3));
+            }
+
+            displayComplaints();
+        }
+
+        function refreshComplaints() {
+            loadComplaints();
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('keyup', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            filteredComplaints = allComplaints.filter(complaint => 
+                complaint.title.toLowerCase().includes(searchTerm) ||
+                complaint.description.toLowerCase().includes(searchTerm) ||
+                complaint.reporter_name?.toLowerCase().includes(searchTerm)
+            );
+            displayComplaints();
+        });
+
+        function loadAdminInfo() {
+            const admin = JSON.parse(localStorage.getItem('admin') || '{}');
+            document.querySelector('.admin-name').textContent = admin.name || 'Admin';
+            document.querySelector('.admin-dept').textContent = admin.department || 'Department';
+        }
+
+        window.addEventListener('DOMContentLoaded', initComplaints);
+    </script>
+</body>
+</html>
