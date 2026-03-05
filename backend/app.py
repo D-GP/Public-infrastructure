@@ -19,17 +19,20 @@ import pathlib
 import math
 
 def calculate_distance(lat1, lon1, lat2, lon2):
-    R = 6371.0
+    R = 6371.0 # Radius of the Earth in km
     lat1_rad = math.radians(lat1)
     lon1_rad = math.radians(lon1)
     lat2_rad = math.radians(lat2)
     lon2_rad = math.radians(lon2)
+
     dlon = lon2_rad - lon1_rad
     dlat = lat2_rad - lat1_rad
+
     a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return R * c
 
+    distance = R * c
+    return distance
 
 # Import our custom modules
 from department_contacts import get_emails_for_department, get_response_time_for_department
@@ -285,7 +288,6 @@ def send_report_email_to_authorities(report):
                         {report.get('description', '')}
                     </div>
 
-                    <div style="display: flex; justify-content: space-between; margin: 20px 0;">
                         <div style="flex: 1;">
                             <h4>Report Classifications</h4>
                             <p><strong>Category:</strong> {report.get('category', report.get('department', '')).upper()}</p>
@@ -301,20 +303,20 @@ def send_report_email_to_authorities(report):
                         </div>
                     </div>
 
-                    <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                        <h4 style="margin: 0 0 10px 0; color: #856404;">Reporter Information</h4>
-                        <p style="margin: 5px 0;"><strong>Name:</strong> {report.get('reporter_name', '')}</p>
-                        <p style="margin: 5px 0;"><strong>Email:</strong> {report.get('reporter_email', '')}</p>
+                    <div style=\"background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;\">
+                        <h4 style=\"margin: 0 0 10px 0; color: #856404;\">Reporter Information</h4>
+                        <p style=\"margin: 5px 0;\"><strong>Name:</strong> {report.get('reporter_name', '')}</p>
+                        <p style=\"margin: 5px 0;\"><strong>Email:</strong> {report.get('reporter_email', '')}</p>
                     </div>
 
-                    <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                        <h4 style="margin: 0 0 10px 0; color: #0c5460;">Action Required</h4>
+                    <div style=\"background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0;\">
+                        <h4 style=\"margin: 0 0 10px 0; color: #0c5460;\">Action Required</h4>
                         <p>Please review this report and take appropriate action within {get_response_time_for_department(district, local_body_name, department_code, department_office)} hours.</p>
                         <p><strong>Expected Response Time:</strong> {get_response_time_for_department(district, local_body_name, department_code, department_office)} hours</p>
                     </div>
 
-                    <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
-                        <p style="color: #666; font-size: 12px;">
+                    <div style=\"text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;\">
+                        <p style=\"color: #666; font-size: 12px;\">
                             This is an automated notification from the Public Assets Reporting System.<br>
                             Please do not reply to this email directly.
                         </p>
@@ -323,6 +325,105 @@ def send_report_email_to_authorities(report):
             </body>
         </html>
         """
+
+        msg = Message(
+            subject=subject,
+            recipients=recipients,
+            html=html_body
+        )
+
+        mail.send(msg)
+        print(f"✓ Notification email sent to {department_code} department")
+
+        # Also try WhatsApp
+        try:
+            whatsapp_number = get_whatsapp_for_department(department_code)
+            if whatsapp_number:
+                send_whatsapp_notification(whatsapp_number, report)
+        except Exception as e:
+            pass
+
+        return True
+    except Exception as e:
+        print(f"❌ Failed to send department email: {str(e)}")
+        return False
+
+def send_cooloff_warning_email(report):
+    """Send a strong warning that the 15-day deadline passed."""
+    try:
+        department_code = report.get('department', '').lower()
+        recipients = get_emails_for_department(department_code)
+
+        if not recipients:
+            return False
+
+        subject = f"⚠️ URGENT: 15-Day Cool-off Warning for Report {report.get('id')}"
+
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif;">
+                <h2 style="color: #d9534f;">⚠️ Escalation Warning ⚠️</h2>
+                <p>Attention {department_code.upper()} Department,</p>
+                <p>This is an automated warning from the Public Assets Reporting System.</p>
+                <p>Report <strong>{report.get('id')}</strong> has been inactive for 15 days.</p>
+                <p><strong>Title:</strong> {report.get('title')}</p>
+                <hr>
+                <p><strong>ACTION REQUIRED:</strong> You must resolve this report or log a "Reason for Delay" in the admin dashboard within 15 days, or this issue will be automatically escalated to the State level.</p>
+            </body>
+        </html>
+        """
+        
+        msg = Message(subject=subject, recipients=recipients, html=html_body)
+        mail.send(msg)
+        print(f"✓ Cool-off warning sent to {department_code}")
+        return True
+    except Exception as e:
+        print(f"❌ Cool-off email failed: {e}")
+        return False
+
+def send_escalation_email(report):
+    """Send an escalation email to State Ministry."""
+    try:
+        department_code = report.get('department', '').lower()
+        recipients = get_emails_for_department(department_code, escalation=True)
+        # Also CC the original department
+        cc_recipients = get_emails_for_department(department_code)
+
+        if not recipients:
+            return False
+
+        subject = f"🚨 ESCALATED: District Non-Compliance on Report {report.get('id')}"
+
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif;">
+                <div style="background-color: #d9534f; color: white; padding: 20px; text-align: center;">
+                    <h1 style="margin: 0;">🚨 ESCALATION NOTICE</h1>
+                </div>
+                <div style="padding: 20px; border: 1px solid #ddd;">
+                    <p>To the State Ministry / Higher Authority,</p>
+                    <p>This report has been automatically escalated to your office because the local district department failed to respond within the mandatory 30-day timeframe.</p>
+                    
+                    <h3 style="color: #2563EB;">Report Details</h3>
+                    <p><strong>ID:</strong> {report.get('id')}</p>
+                    <p><strong>Department:</strong> {department_code.upper()}</p>
+                    <p><strong>Title:</strong> {report.get('title')}</p>
+                    <p><strong>Description:</strong> {report.get('description', '')}</p>
+                    <p><strong>Location:</strong> {report.get('location_text', 'Not provided')}</p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        msg = Message(subject=subject, recipients=recipients, cc=cc_recipients, html=html_body)
+        mail.send(msg)
+        print(f"✓ Escalation email sent to {department_code} higher authorities")
+        return True
+    except Exception as e:
+        print(f"❌ Escalation email failed: {e}")
+        return False
+
+
 
         msg = Message(subject=subject, recipients=recipients, html=html_body)
 
@@ -1063,6 +1164,10 @@ def create_request():
                 'lastActionDate': firestore.SERVER_TIMESTAMP,
                 'escalationHistory': [],
                 'userId': request.form.get('userId'), # Add userId from form
+                'escalationLevel': 1,
+                'isCoolOffPeriod': False,
+                'lastActionDate': firestore.SERVER_TIMESTAMP,
+                'escalationHistory': []
             }
         else:
             data = request.get_json()
@@ -1094,7 +1199,7 @@ def create_request():
                 'escalationLevel': 1,
                 'isCoolOffPeriod': False,
                 'lastActionDate': firestore.SERVER_TIMESTAMP,
-                'escalationHistory': [],
+                'escalationHistory': []
             }
 
         # Verify OTP before saving
@@ -1116,7 +1221,6 @@ def create_request():
         except:
             pass
 
-
         # ---- NEW CLUSTERING LOGIC ----
         try:
             loc_text = request_data.get('location_text', '')
@@ -1127,11 +1231,15 @@ def create_request():
                     new_lon = float(parts[1].strip())
                     new_cat = request_data.get('category')
                     
+                    # Search logic: fetch recent pending/in_progress from same category
+                    # We can't do an OR query easily in firestore for 'status', so we filter in Python
                     existing_reports = db.collection('requests').where('category', '==', new_cat).stream()
+                    
                     for doc in existing_reports:
                         doc_data = doc.to_dict()
                         if doc_data.get('status') not in ['pending', 'in_progress']:
                             continue
+                            
                         existing_loc = doc_data.get('location_text', '')
                         if existing_loc and ',' in existing_loc:
                             e_parts = existing_loc.split(',')
@@ -1141,19 +1249,26 @@ def create_request():
                                     e_lon = float(e_parts[1].strip())
                                     dist = calculate_distance(new_lat, new_lon, e_lat, e_lon)
                                     if dist <= 0.05:  # 50 meters
+                                        # Match found! Cluster them
                                         existing_upvotes = doc_data.get('upvotes', 1)
                                         updated_upvotes = existing_upvotes + 1
                                         existing_reporters = doc_data.get('co_reporters', [])
                                         reporter_email = request_data.get('reporter_email')
+                                        
                                         if reporter_email and reporter_email not in existing_reporters:
                                             existing_reporters.append(reporter_email)
-                                        doc.reference.update({'upvotes': updated_upvotes, 'co_reporters': existing_reporters})
+                                            
+                                        doc.reference.update({
+                                            'upvotes': updated_upvotes,
+                                            'co_reporters': existing_reporters
+                                        })
                                         print(f"✓ Clustered with existing request: {doc.id}")
                                         return jsonify({"msg": "Report clustered with identical existing issue", "id": doc.id}), 200
                                 except ValueError:
                                     pass
         except Exception as cluster_err:
             print(f"Clustering error: {cluster_err}")
+            # Fallback to creating a new report if clustering fails
         # ---- END CLUSTERING LOGIC ----
 
         request_data['upvotes'] = 1

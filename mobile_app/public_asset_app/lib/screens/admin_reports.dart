@@ -63,6 +63,62 @@ class _AdminReportsState extends State<AdminReports> {
     } catch (_) {}
   }
 
+  Future<void> _addDelayReason(String id, String note) async {
+    try {
+      final baseUrl = Config.apiBaseUrl;
+      final uri = Uri.parse('$baseUrl/api/requests/$id/note');
+      final resp = await http.put(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'note': note,
+          'admin': 'Admin', // Currently hardcoded, could fetch from auth
+        }),
+      );
+      if (resp.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Reason logged. Timer reset.')),
+          );
+        }
+        fetchReports();
+      }
+    } catch (_) {}
+  }
+
+  void _showDelayDialog(String id) {
+    final noteController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Reason for Delay'),
+        content: TextField(
+          controller: noteController,
+          decoration: const InputDecoration(
+            hintText: 'e.g. Waiting for materials...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (noteController.text.trim().isNotEmpty) {
+                _addDelayReason(id, noteController.text.trim());
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -87,8 +143,14 @@ class _AdminReportsState extends State<AdminReports> {
                       title: Text(r['title'] ?? 'No title'),
                       subtitle: Text(r['description'] ?? ''),
                       trailing: PopupMenuButton<String>(
-                        onSelected: (v) =>
-                            _changeStatus(r['id'] ?? r['docId'] ?? '', v),
+                        onSelected: (v) {
+                          final reqId = r['id'] ?? r['docId'] ?? '';
+                          if (v == 'delay_reason') {
+                            _showDelayDialog(reqId);
+                          } else {
+                            _changeStatus(reqId, v);
+                          }
+                        },
                         itemBuilder: (_) => [
                           const PopupMenuItem(
                             value: 'in_progress',
@@ -97,6 +159,11 @@ class _AdminReportsState extends State<AdminReports> {
                           const PopupMenuItem(
                             value: 'resolved',
                             child: Text('Mark Resolved'),
+                          ),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem(
+                            value: 'delay_reason',
+                            child: Text('Add Reason for Delay'),
                           ),
                         ],
                       ),

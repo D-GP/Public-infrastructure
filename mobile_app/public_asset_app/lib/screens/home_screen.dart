@@ -10,6 +10,7 @@ import 'profile_screen.dart';
 import 'notification_settings_screen.dart';
 import '../config.dart';
 import '../utils/language_manager.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class HomeScreen extends StatefulWidget {
   final String token;
@@ -343,14 +344,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Text(LanguageManager.instance.t('cancel')),
                         ),
                         TextButton(
-                          onPressed: () {
+                          onPressed: () async {
                             Navigator.pop(ctx); // Close dialog
                             Navigator.pop(context); // Close drawer
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => const LoginScreen(),
-                              ),
-                            );
+                            await const FlutterSecureStorage().deleteAll();
+                            if (context.mounted) {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (_) => const LoginScreen(),
+                                ),
+                              );
+                            }
                           },
                           child: Text(LanguageManager.instance.t('confirm')),
                         ),
@@ -897,21 +901,29 @@ class _HomeScreenState extends State<HomeScreen> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _formatDate(dateString),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
                   Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
+                      Container(
+                        alignment: Alignment.centerRight,
+                        width: 100, // Fixed width to prevent overflow
+                        child: Text(
+                          _formatDate(dateString),
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
