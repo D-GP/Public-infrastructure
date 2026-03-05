@@ -16,6 +16,20 @@ import time
 from datetime import datetime, timedelta, timezone
 import uuid
 import pathlib
+import math
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    R = 6371.0
+    lat1_rad = math.radians(lat1)
+    lon1_rad = math.radians(lon1)
+    lat2_rad = math.radians(lat2)
+    lon2_rad = math.radians(lon2)
+    dlon = lon2_rad - lon1_rad
+    dlat = lat2_rad - lat1_rad
+    a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
 
 # Import our custom modules
 from department_contacts import get_emails_for_department, get_response_time_for_department
@@ -348,6 +362,71 @@ def send_report_email_to_authorities(report):
         print(f"❌ Failed to notify authorities: {str(e)}")
         return False
 
+
+
+def send_cooloff_warning_email(report):
+    try:
+        department_code = report.get('department', '').lower()
+        recipients = get_emails_for_department('Pathanamthitta', '', department_code, '')
+        if not recipients:
+            return False
+        subject = f"⚠️ URGENT: 15-Day Cool-off Warning for Report {report.get('id')}"
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif;">
+                <h2 style="color: #d9534f;">⚠️ Escalation Warning ⚠️</h2>
+                <p>Attention {department_code.upper()} Department,</p>
+                <p>This is an automated warning from the Public Assets Reporting System.</p>
+                <p>Report <strong>{report.get('id')}</strong> has been inactive for 15 days.</p>
+                <p><strong>Title:</strong> {report.get('title')}</p>
+                <hr>
+                <p><strong>ACTION REQUIRED:</strong> You must resolve this report or log a "Reason for Delay" in the admin dashboard within 15 days, or this issue will be automatically escalated to the State level.</p>
+            </body>
+        </html>
+        """
+        msg = Message(subject=subject, recipients=recipients, html=html_body)
+        mail.send(msg)
+        print(f"✓ Cool-off warning sent to {department_code}")
+        return True
+    except Exception as e:
+        print(f"❌ Cool-off email failed: {e}")
+        return False
+
+def send_escalation_email(report):
+    try:
+        department_code = report.get('department', '').lower()
+        # Fallback to general district email if escalating
+        recipients = get_emails_for_department('Pathanamthitta', '', department_code, '', escalation=True) if 'escalation' in str(get_emails_for_department) else get_emails_for_department('Pathanamthitta', '', department_code, '')
+        cc_recipients = get_emails_for_department('Pathanamthitta', '', department_code, '')
+        if not recipients:
+            return False
+        subject = f"🚨 ESCALATED: District Non-Compliance on Report {report.get('id')}"
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif;">
+                <div style="background-color: #d9534f; color: white; padding: 20px; text-align: center;">
+                    <h1 style="margin: 0;">🚨 ESCALATION NOTICE</h1>
+                </div>
+                <div style="padding: 20px; border: 1px solid #ddd;">
+                    <p>To the State Ministry / Higher Authority,</p>
+                    <p>This report has been automatically escalated to your office because the local district department failed to respond within the mandatory 30-day timeframe.</p>
+                    <h3 style="color: #2563EB;">Report Details</h3>
+                    <p><strong>ID:</strong> {report.get('id')}</p>
+                    <p><strong>Department:</strong> {department_code.upper()}</p>
+                    <p><strong>Title:</strong> {report.get('title')}</p>
+                    <p><strong>Description:</strong> {report.get('description', '')}</p>
+                    <p><strong>Location:</strong> {report.get('location_text', 'Not provided')}</p>
+                </div>
+            </body>
+        </html>
+        """
+        msg = Message(subject=subject, recipients=recipients, cc=cc_recipients, html=html_body)
+        mail.send(msg)
+        print(f"✓ Escalation email sent to {department_code} higher authorities")
+        return True
+    except Exception as e:
+        print(f"❌ Escalation email failed: {e}")
+        return False
 
 def send_confirmation_email_to_reporter(report):
     """Send confirmation email to the person who reported the issue with the reported content."""
@@ -979,6 +1058,10 @@ def create_request():
                 'landmark': landmark,
                 'images': images,
                 'lastReminderAt': None,
+                'escalationLevel': 1,
+                'isCoolOffPeriod': False,
+                'lastActionDate': firestore.SERVER_TIMESTAMP,
+                'escalationHistory': [],
                 'userId': request.form.get('userId'), # Add userId from form
             }
         else:
@@ -1008,6 +1091,10 @@ def create_request():
                 'reporter_email': data.get('reporter_email'),
                 'landmark': data.get('landmark'),
                 'lastReminderAt': None,
+                'escalationLevel': 1,
+                'isCoolOffPeriod': False,
+                'lastActionDate': firestore.SERVER_TIMESTAMP,
+                'escalationHistory': [],
             }
 
         # Verify OTP before saving
@@ -1028,6 +1115,49 @@ def create_request():
             db.collection('otps').document(reporter_email).delete()
         except:
             pass
+
+
+        # ---- NEW CLUSTERING LOGIC ----
+        try:
+            loc_text = request_data.get('location_text', '')
+            if loc_text and ',' in loc_text:
+                parts = loc_text.split(',')
+                if len(parts) >= 2:
+                    new_lat = float(parts[0].strip())
+                    new_lon = float(parts[1].strip())
+                    new_cat = request_data.get('category')
+                    
+                    existing_reports = db.collection('requests').where('category', '==', new_cat).stream()
+                    for doc in existing_reports:
+                        doc_data = doc.to_dict()
+                        if doc_data.get('status') not in ['pending', 'in_progress']:
+                            continue
+                        existing_loc = doc_data.get('location_text', '')
+                        if existing_loc and ',' in existing_loc:
+                            e_parts = existing_loc.split(',')
+                            if len(e_parts) >= 2:
+                                try:
+                                    e_lat = float(e_parts[0].strip())
+                                    e_lon = float(e_parts[1].strip())
+                                    dist = calculate_distance(new_lat, new_lon, e_lat, e_lon)
+                                    if dist <= 0.05:  # 50 meters
+                                        existing_upvotes = doc_data.get('upvotes', 1)
+                                        updated_upvotes = existing_upvotes + 1
+                                        existing_reporters = doc_data.get('co_reporters', [])
+                                        reporter_email = request_data.get('reporter_email')
+                                        if reporter_email and reporter_email not in existing_reporters:
+                                            existing_reporters.append(reporter_email)
+                                        doc.reference.update({'upvotes': updated_upvotes, 'co_reporters': existing_reporters})
+                                        print(f"✓ Clustered with existing request: {doc.id}")
+                                        return jsonify({"msg": "Report clustered with identical existing issue", "id": doc.id}), 200
+                                except ValueError:
+                                    pass
+        except Exception as cluster_err:
+            print(f"Clustering error: {cluster_err}")
+        # ---- END CLUSTERING LOGIC ----
+
+        request_data['upvotes'] = 1
+        request_data['co_reporters'] = [request_data.get('reporter_email')] if request_data.get('reporter_email') else []
 
         # Save to Firestore
         doc_ref = db.collection('requests').add(request_data)
@@ -1124,6 +1254,44 @@ def update_request(request_id):
         print(f"Error updating request: {str(e)}")
         return jsonify({"msg": "Failed to update request", "error": str(e)}), 500
 
+
+# ADD NOTE / REASON FOR DELAY ENDPOINT
+@app.route('/api/requests/<request_id>/note', methods=['PUT'])
+@handle_errors
+def add_request_note(request_id):
+    try:
+        data = request.get_json()
+        note = data.get('note', '').strip()
+        admin_name = data.get('admin', 'Admin')
+
+        if not note:
+            return jsonify({"msg": "Note text is required"}), 400
+
+        doc_ref = db.collection('requests').document(request_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return jsonify({"msg": "Request not found"}), 404
+
+        existing_data = doc.to_dict() or {}
+        history = existing_data.get('escalationHistory', [])
+        
+        history.append({
+            'date': firestore.SERVER_TIMESTAMP,
+            'note': f"[{admin_name}] Reason for delay logged: {note}"
+        })
+
+        # By resetting lastActionDate, we freeze/reset the 15-day timer!
+        doc_ref.update({
+            'escalationHistory': history,
+            'lastActionDate': firestore.SERVER_TIMESTAMP
+        })
+
+        print(f"✓ Added delay reason to request: {request_id}")
+        return jsonify({"msg": "Reason logged. Escalation timer reset."}), 200
+    except Exception as e:
+        print(f"Error adding note: {str(e)}")
+        return jsonify({"msg": "Failed to add note", "error": str(e)}), 500
+
 # HEALTH CHECK ENDPOINT
 @app.route('/health', methods=['GET'])
 def health():
@@ -1197,6 +1365,71 @@ def reminder_worker_loop():
                         print(f"❌ Failed to send reminder for {doc.id}: {str(e)}")
         except Exception as e:
             print(f"Reminder worker error: {str(e)}")
+
+
+        # ---- ESCALATION LOGIC CHECK ----
+        try:
+            now = datetime.now(timezone.utc)
+            # Use real days or debug minutes based on environment switch
+            is_debug = os.getenv('ESCALATION_DEBUG', 'false').lower() == 'true'
+            cool_off_delta = timedelta(minutes=1) if is_debug else timedelta(days=15)
+            escalate_delta = timedelta(minutes=2) if is_debug else timedelta(days=30)
+            
+            pending_docs = db.collection('requests').where(filter=firestore.FieldFilter('status', 'in', ['pending', 'in_progress'])).stream()
+            
+            for doc in pending_docs:
+                data = doc.to_dict() or {}
+                level = data.get('escalationLevel', 1)
+                is_cool = data.get('isCoolOffPeriod', False)
+                last_action = data.get('lastActionDate')
+                
+                # We only escalate level 1 stuff locally right now
+                if level != 1:
+                    continue
+                    
+                if last_action:
+                    if hasattr(last_action, 'ToDatetime'):
+                        la_dt = last_action.ToDatetime().replace(tzinfo=timezone.utc)
+                    elif isinstance(last_action, datetime):
+                        la_dt = last_action.replace(tzinfo=timezone.utc)
+                    else:
+                        continue
+                        
+                    time_elapsed = now - la_dt
+                    
+                    doc_ref = db.collection('requests').document(doc.id)
+                    history_list = data.get('escalationHistory', [])
+                    
+                    # 1. Check Level 2 Escalation (30 Days Total)
+                    if time_elapsed > escalate_delta:
+                        print(f"🚨 ESCALATING Report {doc.id} to State Level!")
+                        history_list.append({
+                            'date': firestore.SERVER_TIMESTAMP,
+                            'note': 'District failed to respond within timeframe. Escalated to State authorities.'
+                        })
+                        doc_ref.update({
+                            'escalationLevel': 2,
+                            'escalationHistory': history_list
+                        })
+                        
+                        # Trigger email
+                        report_copy = data.copy()
+                        report_copy['id'] = doc.id
+                        send_escalation_email(report_copy)
+                        
+                    # 2. Check Level 1 Warning (15 Days)
+                    elif time_elapsed > cool_off_delta and not is_cool:
+                        print(f"⚠️ Report {doc.id} entered cool-off period. Warning District!")
+                        doc_ref.update({
+                            'isCoolOffPeriod': True
+                        })
+                        # Trigger warning email specifically for cooloff
+                        report_copy = data.copy()
+                        report_copy['id'] = doc.id
+                        send_cooloff_warning_email(report_copy)
+
+        except Exception as esc_err:
+            print(f"Escalation worker error: {str(esc_err)}")
 
         time.sleep(check_interval)
 
