@@ -124,7 +124,7 @@ class _AdminReportsState extends State<AdminReports> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('All Reports'),
-        backgroundColor: const Color(0xFF2563EB),
+        backgroundColor: const Color(0xFF26A69A),
       ),
       body: RefreshIndicator(
         onRefresh: fetchReports,

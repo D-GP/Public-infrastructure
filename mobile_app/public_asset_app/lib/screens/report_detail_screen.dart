@@ -82,11 +82,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
-        return Colors.orange;
+        return Color(0xFFFFB74D);
       case 'in_progress':
-        return Colors.blue;
+        return Color(0xFF26A69A);
       case 'resolved':
-        return Colors.green;
+        return Color(0xFF66BB6A);
       case 'closed':
         return Colors.grey;
       default:
@@ -112,7 +112,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
         title: Text(
           LanguageManager.instance.t('reports'),
         ), // Used 'reports' as close approximation or add 'report_details'
-        backgroundColor: const Color(0xFF2563EB),
+        backgroundColor: const Color(0xFF26A69A),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -151,15 +151,15 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                   horizontal: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  border: Border.all(color: Colors.red.shade200),
+                  color: Color(0xFFFFEBEE),
+                  border: Border.all(color: Color(0xFFFFCDD2)),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: const [
                     Icon(
                       Icons.warning_amber_rounded,
-                      color: Colors.red,
+                      color: Color(0xFFE57373),
                       size: 20,
                     ),
                     SizedBox(width: 8),
@@ -167,7 +167,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                       child: Text(
                         'ESCALATED TO STATE LEVEL',
                         style: TextStyle(
-                          color: Colors.red,
+                          color: Color(0xFFE57373),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -184,19 +184,23 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                   horizontal: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  border: Border.all(color: Colors.orange.shade200),
+                  color: Color(0xFFFFF3E0),
+                  border: Border.all(color: Color(0xFFFFCC80)),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: const [
-                    Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                    Icon(
+                      Icons.info_outline,
+                      color: Color(0xFFFFB74D),
+                      size: 20,
+                    ),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Warning Sent: In 15-Day Cool-Off Period',
                         style: TextStyle(
-                          color: Colors.orange,
+                          color: Color(0xFFFFB74D),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -271,7 +275,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                           const Icon(
                             Icons.circle,
                             size: 10,
-                            color: Colors.blue,
+                            color: Color(0xFF26A69A),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -338,7 +342,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                 height: 250,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: Colors.black,
+                  color: Color(0xFF1A202C),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: ClipRRect(
@@ -420,9 +424,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
       MaterialPageRoute(
         builder: (_) {
           return Scaffold(
-            backgroundColor: Colors.black,
+            backgroundColor: Color(0xFF1A202C),
             appBar: AppBar(
-              backgroundColor: Colors.black,
+              backgroundColor: Color(0xFF1A202C),
               iconTheme: const IconThemeData(color: Colors.white),
             ),
             body: Center(

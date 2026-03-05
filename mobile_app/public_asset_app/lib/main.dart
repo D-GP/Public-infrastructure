@@ -72,6 +72,26 @@ class _MyAppState extends State<MyApp> {
             navigatorKey: navigatorKey,
             debugShowCheckedModeBanner: false,
             locale: locale,
+            theme: ThemeData(
+              primaryColor: const Color(0xFF26A69A),
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: const Color(0xFF26A69A),
+                primary: const Color(0xFF26A69A),
+                secondary: const Color(0xFF80CBC4),
+              ),
+              scaffoldBackgroundColor: const Color(0xFFF4F9F9),
+              appBarTheme: const AppBarTheme(
+                backgroundColor: Color(0xFF26A69A),
+                foregroundColor: Colors.white,
+                elevation: 0,
+              ),
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF26A69A),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
             home: const SplashScreen(),
           );
         },

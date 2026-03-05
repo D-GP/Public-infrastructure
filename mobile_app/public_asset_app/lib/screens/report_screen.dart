@@ -154,7 +154,7 @@ class _ReportScreenState extends State<ReportScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Please select your local body type and name.'),
-            backgroundColor: Colors.red,
+            backgroundColor: Color(0xFFE57373),
           ),
         );
       }
@@ -166,7 +166,7 @@ class _ReportScreenState extends State<ReportScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Please select the specific department office.'),
-            backgroundColor: Colors.red,
+            backgroundColor: Color(0xFFE57373),
           ),
         );
       }
@@ -189,12 +189,15 @@ class _ReportScreenState extends State<ReportScreen> {
       if (response.statusCode == 200) {
         _showOtpDialog();
       } else {
-        final resBody = jsonDecode(response.body);
+        String errMsg = 'Failed to send OTP';
+        try {
+          final resBody = jsonDecode(response.body);
+          errMsg = resBody['msg'] ?? errMsg;
+        } catch (_) {
+          errMsg = 'Server error: ${response.statusCode}';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(resBody['msg'] ?? 'Failed to send OTP'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(errMsg), backgroundColor: Color(0xFFE57373)),
         );
       }
     } catch (e) {
@@ -202,7 +205,7 @@ class _ReportScreenState extends State<ReportScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Connection Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
+          backgroundColor: Color(0xFFE57373),
         ),
       );
     } finally {
@@ -324,7 +327,7 @@ class _ReportScreenState extends State<ReportScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(LanguageManager.instance.t('submission_success')),
-            backgroundColor: Colors.green,
+            backgroundColor: Color(0xFF66BB6A),
           ),
         );
         Navigator.of(context).pop(true);
@@ -333,7 +336,7 @@ class _ReportScreenState extends State<ReportScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Submission failed: ${resp.body}'),
-            backgroundColor: Colors.red,
+            backgroundColor: Color(0xFFE57373),
           ),
         );
         return false;
@@ -345,7 +348,7 @@ class _ReportScreenState extends State<ReportScreen> {
             content: Text(
               'Connection Error: ${e.toString()}. Check your internet or server URL.',
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: Color(0xFFE57373),
           ),
         );
       }
@@ -360,7 +363,7 @@ class _ReportScreenState extends State<ReportScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(LanguageManager.instance.t('report_problem')),
-        backgroundColor: const Color(0xFF2563EB),
+        backgroundColor: const Color(0xFF26A69A),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -570,7 +573,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     icon: const Icon(Icons.my_location),
                     label: Text(LanguageManager.instance.t('use_current')),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
+                      backgroundColor: const Color(0xFF26A69A),
                     ),
                   ),
                 ],
@@ -607,7 +610,7 @@ class _ReportScreenState extends State<ReportScreen> {
                               const Icon(
                                 Icons.add_a_photo,
                                 size: 30,
-                                color: Colors.black45,
+                                color: Color(0xFF718096),
                               ),
                               Text(
                                 LanguageManager.instance.t('photos'),
@@ -634,7 +637,7 @@ class _ReportScreenState extends State<ReportScreen> {
                               const Icon(
                                 Icons.video_call,
                                 size: 30,
-                                color: Colors.black45,
+                                color: Color(0xFF718096),
                               ),
                               Text(
                                 LanguageManager.instance.t('video'),
@@ -663,7 +666,7 @@ class _ReportScreenState extends State<ReportScreen> {
                               borderRadius: BorderRadius.circular(8),
                               child: isVideo
                                   ? Container(
-                                      color: Colors.black,
+                                      color: Color(0xFF1A202C),
                                       child: const Center(
                                         child: Icon(
                                           Icons.play_circle_outline,
@@ -700,7 +703,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 child: ElevatedButton(
                   onPressed: isSubmitting ? null : sendOtpAndShowDialog,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
+                    backgroundColor: const Color(0xFF26A69A),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: isSubmitting

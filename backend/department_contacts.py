@@ -214,17 +214,27 @@ def get_department_contacts(district, local_body_name, department_code, departme
     # Ultimate fallback
     return DISTRICT_DEFAULTS['other']
 
-def get_emails_for_department(district, local_body_name, department_code, department_office=None, escalation=False):
-    """Get email addresses for a specific local office"""
-    contacts = get_department_contacts(district, local_body_name, department_code, department_office)
-    if escalation:
-        return contacts.get('escalation_emails', contacts['emails'])
-    return contacts['emails']
+def get_emails_for_department(district, local_body_name, department_code, department_office=None, escalation_level=0):
+    """
+    Get email addresses based on the 4-tier escalation matrix:
+    0: Local -> gp67840098@gmail.com
+    1: Taluk -> k30380238@gmail.com
+    2: District Collector -> gowthampnair123@gmail.com
+    3: Ministry -> gowthampnair7@gmail.com
+    """
+    # For now, overriding the dictionaries to enforce the requested global escalation matrix
+    levels = {
+        0: ['gp67840098@gmail.com'],
+        1: ['k30380238@gmail.com'],
+        2: ['gowthampnair123@gmail.com'],
+        3: ['gowthampnair7@gmail.com']
+    }
+    return levels.get(escalation_level, levels[3])
 
-def get_whatsapp_for_department(district, local_body_name, department_code, department_office=None, escalation=False):
+def get_whatsapp_for_department(district, local_body_name, department_code, department_office=None, escalation_level=0):
     """Get WhatsApp number for a specific local office"""
     contacts = get_department_contacts(district, local_body_name, department_code, department_office)
-    if escalation:
+    if escalation_level > 0:
         return contacts.get('escalation_whatsapp', contacts['whatsapp'])
     return contacts['whatsapp']
 

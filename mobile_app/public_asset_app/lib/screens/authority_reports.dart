@@ -58,7 +58,7 @@ class _AuthorityReportsState extends State<AuthorityReports> {
     return Scaffold(
       appBar: AppBar(
         title: Text('${widget.department} Reports'),
-        backgroundColor: const Color(0xFF2563EB),
+        backgroundColor: const Color(0xFF26A69A),
       ),
       body: RefreshIndicator(
         onRefresh: fetchReports,

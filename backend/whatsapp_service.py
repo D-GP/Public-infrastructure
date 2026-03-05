@@ -108,7 +108,7 @@ class WhatsAppService:
                 'error': error_msg
             }
 
-    def send_report_notification(self, department_code, report_data, escalation=False):
+    def send_report_notification(self, department_code, report_data, escalation_level=0):
         """
         Send report notification to department via WhatsApp
         """
@@ -118,7 +118,7 @@ class WhatsAppService:
         local_body_name = report_data.get('local_body_name', '')
         department_office = report_data.get('department_office', '')
 
-        whatsapp_number = get_whatsapp_for_department(district, local_body_name, department_code, department_office, escalation)
+        whatsapp_number = get_whatsapp_for_department(district, local_body_name, department_code, department_office, escalation_level)
 
         if not whatsapp_number:
             logger.warning(f"⚠️ No WhatsApp number configured for department: {department_code}")
@@ -132,7 +132,7 @@ class WhatsAppService:
             'low': 'ℹ️'
         }.get(report_data.get('priority', 'normal'), '📋')
 
-        escalation_text = " [ESCALATION]" if escalation else ""
+        escalation_text = f" [ESCALATION LEVEL {escalation_level}]" if escalation_level > 0 else ""
 
         message = f"""{priority_emoji} *NEW PUBLIC REPORT*{escalation_text}
 
@@ -209,7 +209,7 @@ _Urgent attention required!_"""
 
         return self.send_message(whatsapp_number, message)
 
-    def send_escalation_notification(self, department_code, report_data):
+    def send_escalation_notification(self, department_code, report_data, escalation_level=1):
         """
         Send escalation notification to higher authorities
         """
@@ -219,7 +219,7 @@ _Urgent attention required!_"""
         local_body_name = report_data.get('local_body_name', '')
         department_office = report_data.get('department_office', '')
 
-        whatsapp_number = get_whatsapp_for_department(district, local_body_name, department_code, department_office, escalation=True)
+        whatsapp_number = get_whatsapp_for_department(district, local_body_name, department_code, department_office, escalation_level)
 
         if not whatsapp_number:
             return {'success': False, 'error': 'No escalation WhatsApp number configured'}
@@ -247,15 +247,15 @@ _Escalated from Public Assets Reporting System_"""
 # Global WhatsApp service instance
 whatsapp_service = WhatsAppService()
 
-def send_whatsapp_notification(department_code, report_data, escalation=False):
+def send_whatsapp_notification(department_code, report_data, escalation_level=0):
     """Convenience function to send WhatsApp notification"""
-    return whatsapp_service.send_report_notification(department_code, report_data, escalation)
+    return whatsapp_service.send_report_notification(department_code, report_data, escalation_level)
 
 def send_whatsapp_reminder(department_code, report_data, reminder_count=1):
     """Convenience function to send WhatsApp reminder"""
     return whatsapp_service.send_reminder_notification(department_code, report_data, reminder_count)
 
-def send_whatsapp_escalation(department_code, report_data):
+def send_whatsapp_escalation(department_code, report_data, escalation_level=1):
     """Convenience function to send WhatsApp escalation"""
-    return whatsapp_service.send_escalation_notification(department_code, report_data)
+    return whatsapp_service.send_escalation_notification(department_code, report_data, escalation_level)
 

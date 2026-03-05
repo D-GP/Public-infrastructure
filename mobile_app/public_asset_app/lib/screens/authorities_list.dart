@@ -18,7 +18,7 @@ class AuthoritiesList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Departments'), backgroundColor: const Color(0xFF2563EB)),
+      appBar: AppBar(title: const Text('Departments'), backgroundColor: const Color(0xFF26A69A)),
       body: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: departments.length,
