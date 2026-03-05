@@ -157,10 +157,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (response.statusCode == 200) {
         _showOtpDialog();
       } else {
-        final resBody = jsonDecode(response.body);
-        setState(() => errorMessage = resBody['msg'] ?? 'Failed to send OTP');
+        String errMsg = 'Failed to send OTP';
+        try {
+          final resBody = jsonDecode(response.body);
+          errMsg = resBody['msg'] ?? errMsg;
+        } catch (_) {
+          errMsg = 'Server error: ${response.statusCode}';
+        }
+        setState(() => errorMessage = errMsg);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage!), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(errorMessage!),
+            backgroundColor: Color(0xFFE57373),
+          ),
         );
       }
     } on SocketException catch (_) {
@@ -168,14 +177,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       const errorMsg = 'No internet connection. Please check your network.';
       setState(() => errorMessage = errorMsg);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: Color(0xFFE57373),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       final errorMsg = e.toString().replaceFirst('Exception: ', '');
       setState(() => errorMessage = errorMsg);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+        SnackBar(content: Text(errorMsg), backgroundColor: Color(0xFFE57373)),
       );
     } finally {
       if (mounted) setState(() => loading = false);
@@ -292,7 +304,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             content: Text(
               LanguageManager.instance.t('registration_successful'),
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: Color(0xFF66BB6A),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -302,7 +314,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return true;
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.red),
+          SnackBar(content: Text(message), backgroundColor: Color(0xFFE57373)),
         );
         return false;
       }
@@ -311,7 +323,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
+          backgroundColor: Color(0xFFE57373),
         ),
       );
       return false;
@@ -323,7 +335,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(LanguageManager.instance.t('register')),
-        backgroundColor: Colors.blue,
+        backgroundColor: Color(0xFF26A69A),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -344,7 +356,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const Icon(
                         Icons.person_add,
                         size: 48,
-                        color: Colors.blue,
+                        color: Color(0xFF26A69A),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -352,7 +364,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: Color(0xFF2D3748),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -369,15 +381,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.red.shade100,
-                            border: Border.all(color: Colors.red.shade400),
+                            color: Color(0xFFFFCDD2),
+                            border: Border.all(color: Color(0xFFE57373)),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
                             children: [
                               Icon(
                                 Icons.error,
-                                color: Colors.red.shade700,
+                                color: Color(0xFFD32F2F),
                                 size: 20,
                               ),
                               const SizedBox(width: 12),
@@ -385,7 +397,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 child: Text(
                                   errorMessage!,
                                   style: TextStyle(
-                                    color: Colors.red.shade700,
+                                    color: Color(0xFFD32F2F),
                                     fontSize: 13,
                                   ),
                                 ),
@@ -645,7 +657,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           onPressed: loading ? null : sendOtpAndShowDialog,
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            backgroundColor: Colors.blue,
+                            backgroundColor: Color(0xFF26A69A),
                             disabledBackgroundColor: Colors.grey,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -686,7 +698,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             child: Text(
                               LanguageManager.instance.t('login'),
                               style: const TextStyle(
-                                color: Colors.blue,
+                                color: Color(0xFF26A69A),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),

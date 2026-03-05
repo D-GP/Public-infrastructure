@@ -161,6 +161,10 @@ def handle_errors(f):
             return jsonify({"msg": str(e)}), 500
     return decorated_function
 
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify({"msg": f"Rate limit exceeded: {e.description}"}), 429
+
 # AI Image Moderation
 def analyze_image_safety(image_path):
     """
@@ -399,18 +403,63 @@ def send_cooloff_warning_email(report):
         print(f"❌ Cool-off email failed: {e}")
         return False
 
-def send_escalation_email(report):
-    """Send an escalation email to State Ministry."""
+def send_reporter_escalation_update(report, escalation_level):
+    """Notify the user that their report was escalated due to inaction."""
+    try:
+        reporter_email = report.get('reporter_email')
+        if not reporter_email:
+            return False
+
+        level_names = {
+            1: "Taluk Level",
+            2: "District Collector",
+            3: "State Ministry"
+        }
+        level_name = level_names.get(escalation_level, "Higher Authority")
+
+        subject = f"Update on Your Report {report.get('id')} - Escalated to {level_name}"
+
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif;">
+                <h2 style="color: #d9534f;">🚨 Report Escalated</h2>
+                <p>Hello {report.get('reporter_name', 'Citizen')},</p>
+                <p>Your report <strong>{report.get('id')}</strong> ({report.get('title')}) has not been resolved by the responsible department within the mandated timeframe.</p>
+                <p>As per our automated escalation policy, we have escalated this issue to the <strong>{level_name}</strong> for immediate attention.</p>
+                <p>We will keep you updated on any further progress.</p>
+                <p>Regards,<br>Public Assets Reporting System</p>
+            </body>
+        </html>
+        """
+        msg = Message(subject=subject, recipients=[reporter_email], html=html_body)
+        mail.send(msg)
+        print(f"✓ Reporter notified of escalation to {level_name}")
+        return True
+    except Exception as e:
+        print(f"❌ Reporter escalation notification failed: {e}")
+        return False
+
+def send_escalation_email(report, escalation_level=1):
+    """Send an escalation email to Higher Authorities."""
     try:
         department_code = report.get('department', '').lower()
-        recipients = get_emails_for_department(department_code, escalation=True)
-        # Also CC the original department
-        cc_recipients = get_emails_for_department(department_code)
+        district = report.get('district', 'Pathanamthitta')
+        local_body_name = report.get('local_body_name', '')
+        
+        # Get emails for the new escalation level
+        recipients = get_emails_for_department(district, local_body_name, department_code, escalation_level=escalation_level)
+        
+        # CC the previous level so they know it escalated
+        cc_level = max(0, escalation_level - 1)
+        cc_recipients = get_emails_for_department(district, local_body_name, department_code, escalation_level=cc_level)
 
         if not recipients:
             return False
 
-        subject = f"🚨 ESCALATED: District Non-Compliance on Report {report.get('id')}"
+        level_names = {1: "Taluk Office", 2: "District Collector", 3: "State Ministry"}
+        level_name = level_names.get(escalation_level, "Higher Authority")
+
+        subject = f"🚨 ESCALATED TO {level_name.upper()}: Unresolved Report {report.get('id')}"
 
         html_body = f"""
         <html>
@@ -419,8 +468,8 @@ def send_escalation_email(report):
                     <h1 style="margin: 0;">🚨 ESCALATION NOTICE</h1>
                 </div>
                 <div style="padding: 20px; border: 1px solid #ddd;">
-                    <p>To the State Ministry / Higher Authority,</p>
-                    <p>This report has been automatically escalated to your office because the local district department failed to respond within the mandatory 30-day timeframe.</p>
+                    <p>To the {level_name},</p>
+                    <p>This report has been automatically escalated to your office because the lower tier department failed to respond within the mandated timeframe.</p>
                     
                     <h3 style="color: #2563EB;">Report Details</h3>
                     <p><strong>ID:</strong> {report.get('id')}</p>
@@ -435,7 +484,10 @@ def send_escalation_email(report):
         
         msg = Message(subject=subject, recipients=recipients, cc=cc_recipients, html=html_body)
         mail.send(msg)
-        print(f"✓ Escalation email sent to {department_code} higher authorities")
+        print(f"✓ Escalation email sent to {level_name}")
+        
+        # Notify whoever reported it
+        send_reporter_escalation_update(report, escalation_level)
         return True
     except Exception as e:
         print(f"❌ Escalation email failed: {e}")
@@ -1209,15 +1261,11 @@ def create_request():
                 'landmark': landmark,
                 'images': images,
                 'lastReminderAt': None,
-                'escalationLevel': 1,
+                'escalationLevel': 0,
                 'isCoolOffPeriod': False,
                 'lastActionDate': firestore.SERVER_TIMESTAMP,
                 'escalationHistory': [],
-                'userId': request.form.get('userId'), # Add userId from form
-                'escalationLevel': 1,
-                'isCoolOffPeriod': False,
-                'lastActionDate': firestore.SERVER_TIMESTAMP,
-                'escalationHistory': []
+                'userId': request.form.get('userId')
             }
         else:
             data = request.get_json()
@@ -1246,7 +1294,7 @@ def create_request():
                 'reporter_email': data.get('reporter_email'),
                 'landmark': data.get('landmark'),
                 'lastReminderAt': None,
-                'escalationLevel': 1,
+                'escalationLevel': 0,
                 'isCoolOffPeriod': False,
                 'lastActionDate': firestore.SERVER_TIMESTAMP,
                 'escalationHistory': []
@@ -1547,18 +1595,18 @@ def reminder_worker_loop():
             # Use real days or debug minutes based on environment switch
             is_debug = os.getenv('ESCALATION_DEBUG', 'false').lower() == 'true'
             cool_off_delta = timedelta(minutes=1) if is_debug else timedelta(days=15)
-            escalate_delta = timedelta(minutes=2) if is_debug else timedelta(days=30)
+            escalate_interval = timedelta(minutes=2) if is_debug else timedelta(days=15)
             
             pending_docs = db.collection('requests').where(filter=firestore.FieldFilter('status', 'in', ['pending', 'in_progress'])).stream()
             
             for doc in pending_docs:
                 data = doc.to_dict() or {}
-                level = data.get('escalationLevel', 1)
+                level = data.get('escalationLevel', 0)
                 is_cool = data.get('isCoolOffPeriod', False)
                 last_action = data.get('lastActionDate')
                 
-                # We only escalate level 1 stuff locally right now
-                if level != 1:
+                # We escalate up to level 3 (Ministry)
+                if level >= 3:
                     continue
                     
                 if last_action:
@@ -1574,26 +1622,38 @@ def reminder_worker_loop():
                     doc_ref = db.collection('requests').document(doc.id)
                     history_list = data.get('escalationHistory', [])
                     
-                    # 1. Check Level 2 Escalation (30 Days Total)
-                    if time_elapsed > escalate_delta:
-                        print(f"🚨 ESCALATING Report {doc.id} to State Level!")
+                    # For level 0, it takes 30 days total to escalate to level 1. 
+                    # For level 1 and 2, it takes 15 days to escalate further.
+                    required_delta = escalate_interval if level > 0 else (escalate_interval * 2)
+
+                    # 1. Check Escalation Trigger
+                    if time_elapsed > required_delta:
+                        next_level = level + 1
+                        print(f"🚨 ESCALATING Report {doc.id} to Level {next_level}!")
+                        
+                        level_names = {1: "Taluk Authority", 2: "District Collector", 3: "State Ministry"}
+                        tier_name = level_names.get(next_level, "Higher Authority")
+
                         history_list.append({
                             'date': firestore.SERVER_TIMESTAMP,
-                            'note': 'District failed to respond within timeframe. Escalated to State authorities.'
+                            'note': f'Lower tier failed to respond within timeframe. Escalated to {tier_name}.'
                         })
+                        
                         doc_ref.update({
-                            'escalationLevel': 2,
-                            'escalationHistory': history_list
+                            'escalationLevel': next_level,
+                            'escalationHistory': history_list,
+                            'lastActionDate': firestore.SERVER_TIMESTAMP,
+                            'isCoolOffPeriod': False
                         })
                         
                         # Trigger email
                         report_copy = data.copy()
                         report_copy['id'] = doc.id
-                        send_escalation_email(report_copy)
+                        send_escalation_email(report_copy, escalation_level=next_level)
                         
-                    # 2. Check Level 1 Warning (15 Days)
-                    elif time_elapsed > cool_off_delta and not is_cool:
-                        print(f"⚠️ Report {doc.id} entered cool-off period. Warning District!")
+                    # 2. Check Level 0 Warning (15 Days)
+                    elif level == 0 and time_elapsed > cool_off_delta and not is_cool:
+                        print(f"⚠️ Report {doc.id} entered cool-off period. Warning Local Department!")
                         doc_ref.update({
                             'isCoolOffPeriod': True
                         })

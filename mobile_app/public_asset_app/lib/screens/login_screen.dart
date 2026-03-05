@@ -100,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(LanguageManager.instance.t('login_success')),
-            backgroundColor: Colors.green,
+            backgroundColor: Color(0xFF66BB6A),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -125,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(LanguageManager.instance.t('login_failed')),
-            backgroundColor: Colors.orange,
+            backgroundColor: Color(0xFFFFB74D),
           ),
         );
       } else {
@@ -134,7 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $message'),
-            backgroundColor: Colors.red,
+            backgroundColor: Color(0xFFE57373),
           ),
         );
       }
@@ -143,14 +143,17 @@ class _LoginScreenState extends State<LoginScreen> {
       const errorMsg = 'No internet connection. Please check your network.';
       setState(() => errorMessage = errorMsg);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: Color(0xFFE57373),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       final errorMsg = e.toString().replaceFirst('Exception: ', '');
       setState(() => errorMessage = errorMsg);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+        SnackBar(content: Text(errorMsg), backgroundColor: Color(0xFFE57373)),
       );
     } finally {
       if (mounted) setState(() => loading = false);
@@ -163,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.blue, Colors.lightBlueAccent],
+            colors: [Color(0xFF26A69A), Color(0xFF80CBC4)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -183,14 +186,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.login, size: 64, color: Colors.blue),
+                      const Icon(
+                        Icons.login,
+                        size: 64,
+                        color: Color(0xFF26A69A),
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         LanguageManager.instance.t('welcome_back'),
                         style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: Color(0xFF2D3748),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -207,15 +214,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.red.shade100,
-                            border: Border.all(color: Colors.red.shade400),
+                            color: Color(0xFFFFCDD2),
+                            border: Border.all(color: Color(0xFFE57373)),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
                             children: [
                               Icon(
                                 Icons.error,
-                                color: Colors.red.shade700,
+                                color: Color(0xFFD32F2F),
                                 size: 20,
                               ),
                               const SizedBox(width: 12),
@@ -223,7 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: Text(
                                   errorMessage!,
                                   style: TextStyle(
-                                    color: Colors.red.shade700,
+                                    color: Color(0xFFD32F2F),
                                     fontSize: 13,
                                   ),
                                 ),
@@ -296,7 +303,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: loading ? null : login,
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            backgroundColor: Colors.blue,
+                            backgroundColor: Color(0xFF26A69A),
                             disabledBackgroundColor: Colors.grey,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -342,7 +349,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: Text(
                               LanguageManager.instance.t('register_here'),
                               style: const TextStyle(
-                                color: Colors.blue,
+                                color: Color(0xFF26A69A),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),

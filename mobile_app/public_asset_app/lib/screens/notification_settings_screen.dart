@@ -108,7 +108,7 @@ class _NotificationSettingsScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notification Settings'),
-        backgroundColor: const Color(0xFF2563EB),
+        backgroundColor: const Color(0xFF26A69A),
         elevation: 0,
       ),
       backgroundColor: Colors.grey[50],
@@ -190,11 +190,11 @@ class _NotificationSettingsScreenState
           color: Colors.blue.shade50,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: const Color(0xFF2563EB)),
+        child: Icon(icon, color: const Color(0xFF26A69A)),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(subtitle),
-      activeThumbColor: const Color(0xFF2563EB),
+      activeThumbColor: const Color(0xFF26A69A),
     );
   }
 }

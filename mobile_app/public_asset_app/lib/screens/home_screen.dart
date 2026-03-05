@@ -269,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             children: [
               DrawerHeader(
-                decoration: const BoxDecoration(color: Color(0xFF2563EB)),
+                decoration: const BoxDecoration(color: Color(0xFF26A69A)),
                 child: Center(
                   child: Text(
                     LanguageManager.instance.t('app_title'),
@@ -367,10 +367,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: const Color(0xFFF4F9F9),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: const Color(0xFF2563EB),
+        backgroundColor: const Color(0xFF26A69A),
         title: Text(
           LanguageManager.instance.t('app_title'),
           style: const TextStyle(
@@ -411,7 +411,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: fetchRequests,
-        color: const Color(0xFF2563EB),
+        color: const Color(0xFF26A69A),
         child: ListView(
           children: [
             // Statistics Dashboard
@@ -437,7 +437,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _buildStatCard(
                           LanguageManager.instance.t('total_reports'),
                           stats['total']!,
-                          Colors.blue,
+                          Color(0xFF26A69A),
                           Icons.assessment,
                           onTap: () {
                             setState(() {
@@ -450,7 +450,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _buildStatCard(
                           LanguageManager.instance.t('pending'),
                           stats['pending']!,
-                          Colors.orange,
+                          Color(0xFFFFB74D),
                           Icons.schedule,
                           onTap: () {
                             setState(() {
@@ -463,7 +463,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _buildStatCard(
                           LanguageManager.instance.t('in_progress'),
                           stats['inProgress']!,
-                          Colors.purple,
+                          Color(0xFFBA68C8),
                           Icons.update,
                           onTap: () {
                             setState(() {
@@ -476,7 +476,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _buildStatCard(
                           LanguageManager.instance.t('resolved'),
                           stats['resolved']!,
-                          Colors.green,
+                          Color(0xFF66BB6A),
                           Icons.check_circle,
                           onTap: () {
                             setState(() {
@@ -499,7 +499,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 decoration: BoxDecoration(
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
+                      color: Color(0xFF1A202C).withValues(alpha: 0.08),
                       blurRadius: 12,
                       offset: const Offset(0, 2),
                     ),
@@ -577,11 +577,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? const Color(0xFF2563EB)
+                              ? const Color(0xFF26A69A)
                               : Colors.white,
                           border: Border.all(
                             color: isSelected
-                                ? const Color(0xFF2563EB)
+                                ? const Color(0xFF26A69A)
                                 : Colors.grey[300]!,
                             width: 1.5,
                           ),
@@ -746,7 +746,7 @@ class _HomeScreenState extends State<HomeScreen> {
             if (isLoading)
               const Padding(
                 padding: EdgeInsets.all(32.0),
-                child: CircularProgressIndicator(color: Color(0xFF2563EB)),
+                child: CircularProgressIndicator(color: Color(0xFF26A69A)),
               )
             else if (errorMessage != null)
               Padding(
@@ -758,13 +758,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       Icon(
                         Icons.error_outline,
                         size: 60,
-                        color: Colors.red[300],
+                        color: Color(0xFFE57373),
                       ),
                       const SizedBox(height: 16),
                       Text(
                         errorMessage!,
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.red[600], fontSize: 16),
+                        style: TextStyle(
+                          color: Color(0xFFE57373),
+                          fontSize: 16,
+                        ),
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
@@ -772,7 +775,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         icon: const Icon(Icons.refresh),
                         label: const Text('Retry'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
+                          backgroundColor: const Color(0xFF26A69A),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 32,
                             vertical: 12,
@@ -837,7 +840,7 @@ class _HomeScreenState extends State<HomeScreen> {
             fetchRequests();
           }
         },
-        backgroundColor: const Color(0xFF2563EB),
+        backgroundColor: const Color(0xFF26A69A),
         icon: const Icon(Icons.add),
         label: Text(LanguageManager.instance.t('report_problem')),
       ),
@@ -1070,11 +1073,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
-        return Colors.orange;
+        return Color(0xFFFFB74D);
       case 'in_progress':
-        return Colors.blue;
+        return Color(0xFF26A69A);
       case 'resolved':
-        return Colors.green;
+        return Color(0xFF66BB6A);
       case 'closed':
         return Colors.grey;
       default:
@@ -1085,11 +1088,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Color _getPriorityColor(String priority) {
     switch (priority.toLowerCase()) {
       case 'high':
-        return Colors.red;
+        return Color(0xFFE57373);
       case 'medium':
         return Colors.deepOrange;
       case 'low':
-        return Colors.blue;
+        return Color(0xFF26A69A);
       default:
         return Colors.grey;
     }

@@ -127,14 +127,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
+      SnackBar(content: Text(message), backgroundColor: Color(0xFFE57373)),
     );
   }
 
   void _showSuccess(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.green),
+      SnackBar(content: Text(message), backgroundColor: Color(0xFF66BB6A)),
     );
   }
 
@@ -143,7 +143,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Profile'),
-        backgroundColor: const Color(0xFF2563EB),
+        backgroundColor: const Color(0xFF26A69A),
         elevation: 0,
         actions: [
           IconButton(
@@ -181,7 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: const TextStyle(
                               fontSize: 40,
                               fontWeight: FontWeight.bold,
-                              color: Colors.blue,
+                              color: Color(0xFF26A69A),
                             ),
                           ),
                         ),
@@ -305,7 +305,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: ElevatedButton(
                         onPressed: isSaving ? null : updateProfile,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
+                          backgroundColor: const Color(0xFF26A69A),
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -359,7 +359,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           maxLines: maxLines,
           validator: validator,
           style: TextStyle(
-            color: enabled ? Colors.black87 : Colors.grey[700],
+            color: enabled ? Color(0xFF2D3748) : Colors.grey[700],
             fontWeight: enabled ? FontWeight.w500 : FontWeight.normal,
           ),
           decoration: InputDecoration(
@@ -378,7 +378,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF2563EB)),
+              borderSide: const BorderSide(color: Color(0xFF26A69A)),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,

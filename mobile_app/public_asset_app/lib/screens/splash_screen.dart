@@ -178,7 +178,7 @@ class _SplashScreenState extends State<SplashScreen>
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Color(0xFF2D3748),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -204,7 +204,7 @@ class _SplashScreenState extends State<SplashScreen>
                   child: Column(
                     children: [
                       const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF26A69A)),
                         strokeWidth: 3,
                       ),
                       const SizedBox(height: 16),
