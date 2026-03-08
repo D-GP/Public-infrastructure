@@ -1857,6 +1857,65 @@ def admin_update_complaint_status(complaint_id):
         print(f"Error updating status: {str(e)}")
         return jsonify({"msg": str(e)}), 500
 
+# Send reply to reporter
+@app.route('/api/admin/complaints/<complaint_id>/reply', methods=['POST'])
+@jwt_required()
+def admin_reply_complaint(complaint_id):
+    """Send a direct reply/message to the reporter via email"""
+    try:
+        data = request.get_json()
+        message = data.get('message', '').strip()
+        
+        if not message:
+            return jsonify({"msg": "Message is required"}), 400
+            
+        doc_ref = db.collection('requests').document(complaint_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return jsonify({"msg": "Complaint not found"}), 404
+            
+        complaint = doc.to_dict()
+        reporter_email = complaint.get('reporter_email')
+        
+        current_user = get_jwt()
+        admin_name = current_user.get('name', 'Admin')
+        
+        # Add to history
+        new_history_entry = {
+            'date': firestore.SERVER_TIMESTAMP,
+            'note': f"Reply sent to reporter by {admin_name}: {message}"
+        }
+        
+        doc_ref.update({
+            'escalationHistory': firestore.ArrayUnion([new_history_entry])
+        })
+        
+        # Send Email
+        if reporter_email:
+            email_msg = Message(
+                subject=f"New Message Regarding Your Report: {complaint.get('title')}",
+                recipients=[reporter_email],
+                html=f"""
+                <html>
+                    <body style="font-family: Arial, sans-serif;">
+                        <p>Hello,</p>
+                        <p>You have received a new message from the administration regarding your report "<strong>{complaint.get('title')}</strong>":</p>
+                        <blockquote style="border-left: 4px solid #ccc; padding-left: 10px; margin-left: 0; font-style: italic;">
+                            {message}
+                        </blockquote>
+                        <p>Regards,<br>{admin_name}</p>
+                    </body>
+                </html>
+                """
+            )
+            mail.send(email_msg)
+            
+        return jsonify({"msg": "Reply sent successfully"}), 200
+        
+    except Exception as e:
+        print(f"Error sending reply: {str(e)}")
+        return jsonify({"msg": str(e)}), 500
+
 # Get analytics dashboard data
 @app.route('/api/admin/analytics', methods=['GET'])
 @jwt_required()
