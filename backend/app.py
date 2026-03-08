@@ -1534,7 +1534,7 @@ def add_request_note(request_id):
         history = existing_data.get('escalationHistory', [])
         
         history.append({
-            'date': firestore.SERVER_TIMESTAMP,
+            'date': datetime.now(timezone.utc),
             'note': f"[{admin_name}] Reason for delay logged: {note}"
         })
 
@@ -1800,7 +1800,7 @@ def admin_update_complaint_status(complaint_id):
         
         # Prepare new history entry
         new_history_entry = {
-            'date': firestore.SERVER_TIMESTAMP,
+            'date': datetime.now(timezone.utc),
             'note': f"Status changed to {new_status.replace('_', ' ').title()}. {notes}"
         }
 
@@ -1882,7 +1882,7 @@ def admin_reply_complaint(complaint_id):
         
         # Add to history
         new_history_entry = {
-            'date': firestore.SERVER_TIMESTAMP,
+            'date': datetime.now(timezone.utc),
             'note': f"Reply sent to reporter by {admin_name}: {message}"
         }
         
