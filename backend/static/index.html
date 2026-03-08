@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Public Assets | Government Reporting Portal</title>
+    <!-- Google Fonts for Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap"
+        rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/portal-styles.css">
+</head>
+
+<body>
+
+    <!-- Header Section -->
+    <header class="gov-header">
+        <div class="container header-container">
+            <div class="logo-area">
+                <i class="fa-solid fa-landmark logo-icon"></i>
+                <div class="logo-text">
+                    <h1>Public Assets System</h1>
+                    <p>Government of Kerala Initiative</p>
+                </div>
+            </div>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="#home" class="active">Home</a></li>
+                    <li><a href="#how-it-works">How It Works</a></li>
+                    <li><a href="#departments">Departments</a></li>
+                    <li><a href="/admin/login" class="admin-link"><i class="fa-solid fa-lock"></i> Authority Login</a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="mobile-menu-btn">
+                <i class="fa-solid fa-bars"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero-section">
+        <div class="hero-overlay"></div>
+        <div class="container hero-content">
+            <div class="hero-text">
+                <span class="badge">Official Citizen Portal</span>
+                <h2>Report Public Infrastructure Issues with Ease.</h2>
+                <p>Empowering citizens to build a better community. Report faulty streetlights, potholed roads, and
+                    water supply issues directly to the concerned government departments for swift action.</p>
+                <div class="hero-actions">
+                    <a href="#download" class="btn btn-primary"><i class="fa-solid fa-mobile-screen-button"></i>
+                        Download App</a>
+                    <a href="#how-it-works" class="btn btn-secondary">Learn More</a>
+                </div>
+            </div>
+            <div class="hero-graphics">
+                <div class="graphic-card">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <h3>Secure & Direct</h3>
+                    <p>Directly notifies the corresponding authority.</p>
+                </div>
+                <div class="graphic-card">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <h3>Track Progress</h3>
+                    <p>Real-time updates on your complaint status.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Statistics Section -->
+    <section class="stats-section">
+        <div class="container stats-container">
+            <div class="stat-box">
+                <i class="fa-solid fa-users"></i>
+                <h3 class="counter" data-target="15000">0</h3>
+                <p>Active Citizens</p>
+            </div>
+            <div class="stat-box">
+                <i class="fa-solid fa-check-double"></i>
+                <h3 class="counter" data-target="4200">0</h3>
+                <p>Issues Resolved</p>
+            </div>
+            <div class="stat-box">
+                <i class="fa-solid fa-building-columns"></i>
+                <h3 class="counter" data-target="12">0</h3>
+                <p>Departments Connected</p>
+            </div>
+            <div class="stat-box">
+                <i class="fa-solid fa-bolt"></i>
+                <h3 class="counter" data-target="48">0</h3>
+                <p>Hrs Avg Response</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="how-it-works-section">
+        <div class="container section-header">
+            <h2>How the Platform Works</h2>
+            <p>A streamlined process designed for transparency and rapid resolution.</p>
+        </div>
+        <div class="container process-steps">
+            <div class="step">
+                <div class="step-icon"><i class="fa-solid fa-camera"></i></div>
+                <h4>1. Spot & Capture</h4>
+                <p>Notice a broken public asset? Open the app, take a clear photo, and provide a brief description of
+                    the issue.</p>
+            </div>
+            <div class="step">
+                <div class="step-icon"><i class="fa-solid fa-location-dot"></i></div>
+                <h4>2. Pin Location</h4>
+                <p>The system automatically tags the exact GPS coordinates to help maintenance teams locate the issue
+                    quickly.</p>
+            </div>
+            <div class="step">
+                <div class="step-icon"><i class="fa-solid fa-paper-plane"></i></div>
+                <h4>3. Direct Routing</h4>
+                <p>Your report is intelligently routed to the relevant local body and department authority based on the
+                    category and location.</p>
+            </div>
+            <div class="step">
+                <div class="step-icon"><i class="fa-solid fa-bell"></i></div>
+                <h4>4. Track Resolution</h4>
+                <p>Receive SMS and email updates as authorities review, action, and successfully resolve your reported
+                    complaint.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download CTA Section -->
+    <section id="download" class="download-section">
+        <div class="container download-container">
+            <div class="download-content">
+                <h2>Ready to Make an Impact?</h2>
+                <p>Download the official Public Assets mobile application today and become an active participant in
+                    maintaining your city's infrastructure.</p>
+                <div class="store-buttons">
+                    <button class="store-btn">
+                        <i class="fa-brands fa-apple"></i>
+                        <div class="store-text">
+                            <span>Download on the</span>
+                            <strong>App Store</strong>
+                        </div>
+                    </button>
+                    <button class="store-btn">
+                        <i class="fa-brands fa-google-play"></i>
+                        <div class="store-text">
+                            <span>GET IT ON</span>
+                            <strong>Google Play</strong>
+                        </div>
+                    </button>
+                </div>
+            </div>
+            <div class="download-image">
+                <div class="phone-mockup">
+                    <div class="screen">
+                        <i class="fa-solid fa-mobile-screen-button text-primary"></i> <br />
+                        <b>Public Assets App</b><br /><br />
+                        <button class="mock-btn">Report Issue</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="gov-footer">
+        <div class="container footer-container">
+            <div class="footer-col brand-col">
+                <div class="logo-area" style="color: white; margin-bottom: 1rem;">
+                    <i class="fa-solid fa-landmark logo-icon"></i>
+                    <div class="logo-text">
+                        <h2 style="font-size: 1.2rem; margin:0;">Public Assets</h2>
+                    </div>
+                </div>
+                <p>A digital initiative to streamline civilian grievance redressal regarding public properties and
+                    infrastructure.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="#home">Home</a></li>
+                    <li><a href="#how-it-works">How It Works</a></li>
+                    <li><a href="#">Privacy Policy</a></li>
+                    <li><a href="#">Terms of Service</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Contact Us</h4>
+                <ul class="contact-info">
+                    <li><i class="fa-solid fa-envelope"></i> support@publicassets.gov.in</li>
+                    <li><i class="fa-solid fa-phone"></i> Toll Free: 1800-425-0000</li>
+                    <li><i class="fa-solid fa-location-dot"></i> Secretariat, Thiruvananthapuram, Kerala</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="container">
+                <p>&copy; 2026 Government of Kerala. All Rights Reserved. Designed for public welfare.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script>
+        // Simple counter animation for statistics
+        const counters = document.querySelectorAll('.counter');
+        const speed = 200;
+
+        counters.forEach(counter => {
+            const updateCount = () => {
+                const target = +counter.getAttribute('data-target');
+                const count = +counter.innerText;
+                const inc = target / speed;
+
+                if (count < target) {
+                    counter.innerText = Math.ceil(count + inc);
+                    setTimeout(updateCount, 15);
+                } else {
+                    counter.innerText = target.toLocaleString();
+                }
+            };
+
+            // Intersection Observer to trigger on scroll
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) {
+                    updateCount();
+                    observer.disconnect();
+                }
+            });
+            observer.observe(counter);
+        });
+
+        // Sticky Header
+        window.addEventListener('scroll', () => {
+            const header = document.querySelector('.gov-header');
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+    </script>
+</body>
+
+</html>

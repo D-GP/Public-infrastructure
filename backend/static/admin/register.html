@@ -1,91 +1,239 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register Admin | Public Assets</title>
+    <title>Admin Portal - Register | Public Assets</title>
     <link rel="stylesheet" href="/static/admin/admin-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .hidden {
+            display: none !important;
+        }
+
+        .verification-box {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 1px solid #dee2e6;
+        }
+    </style>
 </head>
+
 <body class="auth-body">
-    <div class="auth-container">
+    <div class="auth-container" style="max-width: 900px;">
         <div class="auth-box">
             <div class="auth-header">
-                <div class="logo">📝</div>
+                <div class="logo">🏛️</div>
                 <h1>Create Admin Account</h1>
-                <p>Register a new administrative user</p>
+                <p>Secure Government Portal Access</p>
             </div>
 
+            <!-- STEP 1: Registration Form -->
             <form id="registerForm" class="auth-form">
                 <div class="form-group">
-                    <label for="name">Full Name</label>
-                    <input type="text" id="name" name="name" required>
-                </div>
-                <div class="form-group">
-                    <label for="email">Email Address</label>
-                    <input type="email" id="email" name="email" required>
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required minlength="6">
-                </div>
-                <div class="form-group">
-                    <label for="department">Department</label>
-                    <input type="text" id="department" name="department" required>
-                </div>
-                <div class="form-group">
-                    <label for="mobile">Mobile (optional)</label>
-                    <input type="text" id="mobile" name="mobile">
+                    <label>Full Name</label>
+                    <input type="text" id="regName" placeholder="Admin Name" required>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-block">
-                    Register Admin
+                <div class="form-group">
+                    <label>Official Email Address</label>
+                    <input type="email" id="regEmail" placeholder="admin@authority.gov.in" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Mobile Number</label>
+                    <input type="text" id="regMobile" placeholder="+918281090547" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Department</label>
+                    <input type="text" id="regDepartment" placeholder="e.g. pwd, water" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Create Password</label>
+                    <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
+                </div>
+
+                <button type="submit" id="btnRegister" class="btn btn-primary btn-block">
+                    <span class="btn-text">Register Account</span>
                 </button>
-                <div class="form-message" id="formMessage"></div>
-                <button type="button" class="btn btn-link btn-block" onclick="window.location.href='/admin/login'">
-                    ← Back to Login
-                </button>
+                <div class="form-message" id="registerMessage"></div>
             </form>
+
+            <!-- STEP 2: Verification Panel -->
+            <div id="verificationPanel" class="hidden verification-box">
+                <h3 style="color: #26A69A; margin-bottom: 10px;">Check Your Email!</h3>
+                <p style="margin-bottom: 15px; color: #555; line-height: 1.5;">
+                    We've sent a verification link to your email address.<br>
+                    <strong>Please click the link in the email to verify your account, then click the button
+                        below.</strong>
+                </p>
+                <button type="button" id="btnCheckVerification" class="btn btn-primary btn-block">
+                    I Have Verified My Email
+                </button>
+                <div class="form-message" id="verifyMessage" style="margin-top: 15px;"></div>
+
+                <button type="button" class="btn btn-secondary" onclick="window.location.reload();"
+                    style="font-size: 0.8em; padding: 5px 10px; margin-top: 15px;">Start Over</button>
+            </div>
+
+            <div class="auth-footer">
+                <p>Already have an account? <a href="/admin/login">Login here</a></p>
+            </div>
         </div>
 
         <div class="auth-sidebar">
+            <!-- Sidebar content -->
             <div class="sidebar-content">
-                <h3>Need an account?</h3>
-                <p>Use this form to add your own administrative user for the portal. Once created, you can log in and manage complaints.</p>
+                <h3>Join the Authority Portal</h3>
+                <p>Sign up to manage civilian reports and coordinate resolution efforts securely.</p>
+                <ul class="feature-list" style="margin-top: 1.5rem; line-height: 2;">
+                    <li>✓ Secure Authentication</li>
+                    <li>✓ Department-specific views</li>
+                    <li>✓ Secure issue tracking</li>
+                    <li>✓ Direct citizen engagement</li>
+                </ul>
             </div>
         </div>
     </div>
 
+    <!-- Firebase SDK (Compat version for simpler drop-in) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
     <script>
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyD3XJx5ywt6g7VHB2rGa9DC4da7PnCVYq8",
+            authDomain: "smart-public-34653.firebaseapp.com",
+            projectId: "smart-public-34653",
+            storageBucket: "smart-public-34653.firebasestorage.app",
+            messagingSenderId: "547819912434",
+            appId: "1:547819912434:web:8cdbe981b8f34b811e646b",
+            measurementId: "G-GGRC0Z2WEC"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        // UI Elements
+        const registerForm = document.getElementById('registerForm');
+        const verificationPanel = document.getElementById('verificationPanel');
+        const btnRegister = document.getElementById('btnRegister');
+        const btnCheckVerification = document.getElementById('btnCheckVerification');
+
+        // State
+        let currentUser = null;
+        let adminProfileData = null;
+
+        function showMessage(elementId, msg, isError = true) {
+            const msgElement = document.getElementById(elementId);
+            msgElement.style.display = 'block';
+            msgElement.textContent = msg;
+            msgElement.className = 'form-message ' + (isError ? 'error' : 'success');
+        }
+
+        // STEP 1: Registration
+        registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const name = document.getElementById('name').value.trim();
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            const department = document.getElementById('department').value.trim();
-            const mobile = document.getElementById('mobile').value.trim();
-            
-            const msgEl = document.getElementById('formMessage');
-            msgEl.textContent = '';
+
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const mobile = document.getElementById('regMobile').value.trim();
+            const name = document.getElementById('regName').value.trim();
+            const department = document.getElementById('regDepartment').value.trim();
+
+            const formattedMobile = mobile.startsWith('+') ? mobile : '+91' + mobile;
+
+            adminProfileData = { name, department, mobile: formattedMobile };
+
+            btnRegister.disabled = true;
+            btnRegister.querySelector('.btn-text').textContent = 'Creating Account...';
+            document.getElementById('registerMessage').style.display = 'none';
+
             try {
-                const resp = await fetch('/api/admin/register', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({name, email, password, department, mobile})
-                });
-                const data = await resp.json();
-                if (resp.ok) {
-                    msgEl.textContent = 'Admin created! Redirecting to login...';
-                    msgEl.className = 'form-message success';
-                    setTimeout(() => { window.location.href = '/admin/login'; }, 2000);
-                } else {
-                    msgEl.textContent = data.msg || 'Registration failed';
-                    msgEl.className = 'form-message error';
+                // Create User
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                currentUser = userCredential.user;
+
+                // Send Email Verification
+                await currentUser.sendEmailVerification();
+
+                // Switch UI
+                registerForm.classList.add('hidden');
+                verificationPanel.classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Firebase Registration Error:", error);
+                showMessage('registerMessage', error.message || 'Registration failed.');
+                btnRegister.disabled = false;
+                btnRegister.querySelector('.btn-text').textContent = 'Register Account';
+            }
+        });
+
+        // STEP 2: Check Verification & Save Profile
+        btnCheckVerification.addEventListener('click', async () => {
+            if (!currentUser) return;
+
+            btnCheckVerification.disabled = true;
+            btnCheckVerification.textContent = 'Checking...';
+            document.getElementById('verifyMessage').style.display = 'none';
+
+            try {
+                // Refresh the user object to get latest emailVerified status
+                await currentUser.reload();
+
+                if (!currentUser.emailVerified) {
+                    showMessage('verifyMessage', 'Email not verified yet. Please check your inbox and click the link.');
+                    btnCheckVerification.disabled = false;
+                    btnCheckVerification.textContent = 'I Have Verified My Email';
+                    return;
                 }
-            } catch (err) {
-                msgEl.textContent = 'Error: ' + err.message;
-                msgEl.className = 'form-message error';
+
+                btnCheckVerification.textContent = 'Saving Profile...';
+
+                // Get fresh token
+                const idToken = await currentUser.getIdToken(true);
+
+                // Send to backend
+                const response = await fetch('/api/admin/setup-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        idToken: idToken,
+                        name: adminProfileData.name,
+                        department: adminProfileData.department,
+                        mobile: adminProfileData.mobile
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showMessage('verifyMessage', 'Success! Redirecting to login...', false);
+                    setTimeout(() => {
+                        auth.signOut().then(() => {
+                            window.location.href = '/admin/login';
+                        });
+                    }, 1500);
+                } else {
+                    showMessage('verifyMessage', result.msg || 'Failed to save profile. Please try again.');
+                    btnCheckVerification.disabled = false;
+                    btnCheckVerification.textContent = 'Try Again';
+                }
+
+            } catch (error) {
+                console.error("Verification Error:", error);
+                showMessage('verifyMessage', error.message || 'An error occurred.');
+                btnCheckVerification.disabled = false;
+                btnCheckVerification.textContent = 'I Have Verified My Email';
             }
         });
     </script>
 </body>
+
 </html>

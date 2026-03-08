@@ -108,6 +108,52 @@ class WhatsAppService:
                 'error': error_msg
             }
 
+    def send_sms_message(self, to_number, message):
+        """
+        Send a standard SMS message using Twilio API (used for Admin OTPs)
+        """
+        if not self.client or not self.from_number:
+            return {
+                'success': False,
+                'error': 'Twilio service not configured'
+            }
+
+        try:
+            # Ensure it starts with +
+            formatted_to = to_number
+            if not formatted_to.startswith('+'):
+                if formatted_to.startswith('91'):
+                    formatted_to = '+' + formatted_to
+                elif len(formatted_to) == 10:  # Assume Indian mobile
+                    formatted_to = '+91' + formatted_to
+                else:
+                    formatted_to = '+' + formatted_to
+            
+            # The sender must be the raw number, not `whatsapp:` prefix
+            formatted_from = self.from_number.replace('whatsapp:', '')
+
+            msg_args = {
+                'body': message,
+                'from_': formatted_from,
+                'to': formatted_to
+            }
+            
+            message_instance = self.client.messages.create(**msg_args)
+            logger.info(f"✓ SMS message sent to {to_number}: {message_instance.sid}")
+            
+            return {
+                'success': True,
+                'message_id': message_instance.sid,
+                'status': message_instance.status
+            }
+        except Exception as e:
+            error_msg = f"Twilio SMS error: {str(e)}"
+            logger.error(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'error': error_msg
+            }
+
     def send_report_notification(self, department_code, report_data, escalation_level=0):
         """
         Send report notification to department via WhatsApp
@@ -258,4 +304,9 @@ def send_whatsapp_reminder(department_code, report_data, reminder_count=1):
 def send_whatsapp_escalation(department_code, report_data, escalation_level=1):
     """Convenience function to send WhatsApp escalation"""
     return whatsapp_service.send_escalation_notification(department_code, report_data, escalation_level)
+
+def send_sms_otp(to_number, otp_code):
+    """Convenience function to send standard SMS OTP message"""
+    message = f"Your Public Assets Admin Portal registration OTP is: {otp_code}. Valid for 10 minutes."
+    return whatsapp_service.send_sms_message(to_number, message)
 
