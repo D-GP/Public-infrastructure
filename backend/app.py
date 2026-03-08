@@ -1723,14 +1723,21 @@ def admin_get_complaints():
         department = current_user.get('department')
         status_filter = request.args.get('status', None)
         
-        # Query complaints by department
-        query = db.collection('requests').where('department', '==', department)
+        # Since the app sends capitalized departments (e.g. 'PWD') but admins might 
+        # be registered with lowercase ('pwd'), we'll fetch all and filter in Python
+        # to ensure case-insensitive matching.
+        query = db.collection('requests').stream()
         
         complaints = []
-        for doc in query.stream():
+        for doc in query:
             complaint_data = doc.to_dict()
             complaint_data['id'] = doc.id
             
+            # Case-insensitive department check
+            doc_dept = complaint_data.get('department', '').lower()
+            if department and doc_dept != department.lower():
+                continue
+                
             # Filter by status if provided
             if status_filter and complaint_data.get('status') != status_filter:
                 continue
@@ -1855,10 +1862,13 @@ def admin_get_analytics():
         current_user = get_jwt_identity()
         department = current_user.get('department')
         
-        # Get all complaints for department
+        # Get all complaints for department (case-insensitive)
         complaints = []
-        for doc in db.collection('requests').where('department', '==', department).stream():
-            complaints.append(doc.to_dict())
+        for doc in db.collection('requests').stream():
+            doc_data = doc.to_dict()
+            doc_dept = doc_data.get('department', '').lower()
+            if department and doc_dept == department.lower():
+                complaints.append(doc_data)
         
         # Calculate statistics
         total_complaints = len(complaints)
