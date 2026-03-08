@@ -1734,7 +1734,8 @@ def admin_get_complaints():
             complaint_data['id'] = doc.id
             
             # Case-insensitive department check
-            doc_dept = complaint_data.get('department', '').lower()
+            doc_dept_val = complaint_data.get('department')
+            doc_dept = (doc_dept_val if doc_dept_val else '').lower()
             if department and doc_dept != department.lower():
                 continue
                 
@@ -1866,7 +1867,8 @@ def admin_get_analytics():
         complaints = []
         for doc in db.collection('requests').stream():
             doc_data = doc.to_dict()
-            doc_dept = doc_data.get('department', '').lower()
+            doc_dept_val = doc_data.get('department')
+            doc_dept = (doc_dept_val if doc_dept_val else '').lower()
             if department and doc_dept == department.lower():
                 complaints.append(doc_data)
         

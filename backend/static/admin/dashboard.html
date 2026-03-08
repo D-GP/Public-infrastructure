@@ -217,7 +217,7 @@
 
         async function loadDashboardData() {
             try {
-                const response = await adminFetch('/admin/analytics', { method: 'GET' });
+                const response = await adminFetch('/api/admin/analytics', { method: 'GET' });
 
                 if (!response.ok) {
                     if (response.status === 401) {
@@ -250,7 +250,7 @@
 
         async function loadRecentComplaints() {
             try {
-                const response = await adminFetch('/admin/complaints', { method: 'GET' });
+                const response = await adminFetch('/api/admin/complaints', { method: 'GET' });
                 if (!response) return;
                 const data = await response.json();
                 const complaints = data.complaints.slice(0, 5); // First 5
