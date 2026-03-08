@@ -67,6 +67,56 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
+  Future<void> _takePhoto() async {
+    try {
+      final XFile? picked = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 75,
+      );
+      if (picked != null) {
+        setState(() {
+          images.add(picked);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Camera capture failed: $e')));
+      }
+    }
+  }
+
+  void _showImageSourceActionSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Take Photo'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _takePhoto();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImages();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _pickVideo() async {
     try {
       final picked = await _picker.pickVideo(source: ImageSource.gallery);
@@ -595,7 +645,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   scrollDirection: Axis.horizontal,
                   children: [
                     GestureDetector(
-                      onTap: _pickImages,
+                      onTap: _showImageSourceActionSheet,
                       child: Container(
                         width: 100,
                         margin: const EdgeInsets.only(right: 8),
