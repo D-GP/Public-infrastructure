@@ -8,7 +8,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 from dotenv import load_dotenv
 from dotenv import load_dotenv
-from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
 import bcrypt
 from functools import wraps
 import threading
@@ -968,13 +968,16 @@ def admin_login_api():
             print(f"✓ Admin logged in via Firebase: {email}")
             
             # Create JWT access token containing admin identity
-            access_token = create_access_token(identity={
-                'email': admin_data.get('email'),
-                'admin_id': doc_id,
-                'uid': uid,
-                'department': admin_data.get('department'),
-                'name': admin_data.get('name')
-            })
+            access_token = create_access_token(
+                identity=doc_id,
+                additional_claims={
+                    'email': admin_data.get('email'),
+                    'admin_id': doc_id,
+                    'uid': uid,
+                    'department': admin_data.get('department'),
+                    'name': admin_data.get('name')
+                }
+            )
             
             return jsonify({
                 "msg": "Login Success",
@@ -1531,7 +1534,7 @@ def add_request_note(request_id):
         history = existing_data.get('escalationHistory', [])
         
         history.append({
-            'date': firestore.SERVER_TIMESTAMP,
+            'date': datetime.now(timezone.utc),
             'note': f"[{admin_name}] Reason for delay logged: {note}"
         })
 
@@ -1719,18 +1722,26 @@ def start_reminder_worker():
 def admin_get_complaints():
     """Get all complaints for admin's department"""
     try:
-        current_user = get_jwt_identity()
+        current_user = get_jwt()
         department = current_user.get('department')
         status_filter = request.args.get('status', None)
         
-        # Query complaints by department
-        query = db.collection('requests').where('department', '==', department)
-        
+        # Since the app sends capitalized departments (e.g. 'PWD') but admins might 
+        # be registered with lowercase ('pwd'), we'll fetch all and filter in Python
+        # to ensure case-insensitive matching.
+        query = db.collection('requests').stream()
+        print(f"DEBUG admin_get_complaints - Dept: {department}, StatusFilter: {status_filter}")
         complaints = []
-        for doc in query.stream():
+        for doc in query:
             complaint_data = doc.to_dict()
             complaint_data['id'] = doc.id
             
+            # Case-insensitive department check
+            doc_dept_val = complaint_data.get('department')
+            doc_dept = (doc_dept_val if doc_dept_val else '').lower()
+            if department and doc_dept != department.lower():
+                continue
+                
             # Filter by status if provided
             if status_filter and complaint_data.get('status') != status_filter:
                 continue
@@ -1789,7 +1800,7 @@ def admin_update_complaint_status(complaint_id):
         
         # Prepare new history entry
         new_history_entry = {
-            'date': firestore.SERVER_TIMESTAMP,
+            'date': datetime.now(timezone.utc),
             'note': f"Status changed to {new_status.replace('_', ' ').title()}. {notes}"
         }
 
@@ -1846,19 +1857,83 @@ def admin_update_complaint_status(complaint_id):
         print(f"Error updating status: {str(e)}")
         return jsonify({"msg": str(e)}), 500
 
+# Send reply to reporter
+@app.route('/api/admin/complaints/<complaint_id>/reply', methods=['POST'])
+@jwt_required()
+def admin_reply_complaint(complaint_id):
+    """Send a direct reply/message to the reporter via email"""
+    try:
+        data = request.get_json()
+        message = data.get('message', '').strip()
+        
+        if not message:
+            return jsonify({"msg": "Message is required"}), 400
+            
+        doc_ref = db.collection('requests').document(complaint_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return jsonify({"msg": "Complaint not found"}), 404
+            
+        complaint = doc.to_dict()
+        reporter_email = complaint.get('reporter_email')
+        
+        current_user = get_jwt()
+        admin_name = current_user.get('name', 'Admin')
+        
+        # Add to history
+        new_history_entry = {
+            'date': datetime.now(timezone.utc),
+            'note': f"Reply sent to reporter by {admin_name}: {message}"
+        }
+        
+        doc_ref.update({
+            'escalationHistory': firestore.ArrayUnion([new_history_entry])
+        })
+        
+        # Send Email
+        if reporter_email:
+            email_msg = Message(
+                subject=f"New Message Regarding Your Report: {complaint.get('title')}",
+                recipients=[reporter_email],
+                html=f"""
+                <html>
+                    <body style="font-family: Arial, sans-serif;">
+                        <p>Hello,</p>
+                        <p>You have received a new message from the administration regarding your report "<strong>{complaint.get('title')}</strong>":</p>
+                        <blockquote style="border-left: 4px solid #ccc; padding-left: 10px; margin-left: 0; font-style: italic;">
+                            {message}
+                        </blockquote>
+                        <p>Regards,<br>{admin_name}</p>
+                    </body>
+                </html>
+                """
+            )
+            mail.send(email_msg)
+            
+        return jsonify({"msg": "Reply sent successfully"}), 200
+        
+    except Exception as e:
+        print(f"Error sending reply: {str(e)}")
+        return jsonify({"msg": str(e)}), 500
+
 # Get analytics dashboard data
 @app.route('/api/admin/analytics', methods=['GET'])
 @jwt_required()
 def admin_get_analytics():
     """Get analytics and statistics for admin's department"""
     try:
-        current_user = get_jwt_identity()
+        current_user = get_jwt()
         department = current_user.get('department')
         
-        # Get all complaints for department
+        # Get all complaints for department (case-insensitive)
+        print(f"DEBUG admin_get_analytics - Dept: {department}")
         complaints = []
-        for doc in db.collection('requests').where('department', '==', department).stream():
-            complaints.append(doc.to_dict())
+        for doc in db.collection('requests').stream():
+            doc_data = doc.to_dict()
+            doc_dept_val = doc_data.get('department')
+            doc_dept = (doc_dept_val if doc_dept_val else '').lower()
+            if department and doc_dept == department.lower():
+                complaints.append(doc_data)
         
         # Calculate statistics
         total_complaints = len(complaints)

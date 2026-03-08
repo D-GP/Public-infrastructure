@@ -1,0 +1,70 @@
+{
+  "requests": [
+    {
+      "title": "Road Broken",
+      "id": "w7HkkYVd9BKWeUP6gUWT",
+      "reporter_email": "ggp6264@gmail.com",
+      "priority": "high",
+      "escalationHistory": [],
+      "lastReminderAt": null,
+      "description": "Near pathanamthitta road is broken and many accidents are happening do some nessacery action.",
+      "isCoolOffPeriod": false,
+      "category": "PWD",
+      "lastActionDate": "2026-03-08 03:31:16.106000+00:00",
+      "landmark": "near omallor",
+      "location_text": "37.4219983,-122.084",
+      "userId": "bN31o55AmoIuPLcFOS1i",
+      "upvotes": 1,
+      "department_office": "PWD Roads Section, Pathanamthitta",
+      "reporter_name": "Gowtham",
+      "createdAt": "2026-03-08 03:31:16.106000+00:00",
+      "department": "PWD",
+      "location": {
+        "text": "37.4219983,-122.084"
+      },
+      "status": "under_review",
+      "images": [
+        "uploads/b2eaa276dd624e11b8846e2ba99a9d5d_scaled_33.webp"
+      ],
+      "escalationLevel": 0,
+      "co_reporters": [
+        "ggp6264@gmail.com"
+      ]
+    }
+  ],
+  "admins": [
+    {
+      "email": "sanjeevsanthosh143@gmail.com",
+      "department": "PWD",
+      "createdAt": "2026-02-28 16:40:44.699000+00:00",
+      "role": "admin",
+      "password": "2005@SANJEEv",
+      "name": "SANJEEV SANTHOSH"
+    },
+    {
+      "email": "gowthampnair123@gmail.com",
+      "department": "All",
+      "createdAt": "2026-01-24 09:15:06.053000+00:00",
+      "role": "admin",
+      "password": "Gowtham@2",
+      "name": "GOWTHAM"
+    },
+    {
+      "uid": "VP9H2vNkCHhwuwowUkWrshIYkY72",
+      "department": "pwd",
+      "email": "gowthampnair7@gmail.com",
+      "createdAt": "2026-03-07 14:06:17.054000+00:00",
+      "role": "department_admin",
+      "mobile": "+918281090547",
+      "name": "Gowtham P Nair"
+    },
+    {
+      "email": "sanjeevsanthoshh143@gmail.com",
+      "department": "water",
+      "createdAt": "2026-03-02 17:13:31.615000+00:00",
+      "role": "admin",
+      "password": "$2b$12$67d54/0gaw2tD/KlBwOd5eBVbSATDHr4njCjws1AI7z4CU9mNL6K6",
+      "name": "SANJEEV SANTHOSH"
+    }
+  ]
+}

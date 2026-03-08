@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
@@ -67,6 +68,56 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
+  Future<void> _takePhoto() async {
+    try {
+      final XFile? picked = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 75,
+      );
+      if (picked != null) {
+        setState(() {
+          images.add(picked);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Camera capture failed: $e')));
+      }
+    }
+  }
+
+  void _showImageSourceActionSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Take Photo'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _takePhoto();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImages();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _pickVideo() async {
     try {
       final picked = await _picker.pickVideo(source: ImageSource.gallery);
@@ -123,16 +174,36 @@ class _ReportScreenState extends State<ReportScreen> {
         return;
       }
 
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
+      Position? pos;
+      try {
+        pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 15),
+          ),
+        );
+      } catch (e) {
+        if (e is TimeoutException) {
+          pos = await Geolocator.getLastKnownPosition();
+        } else {
+          rethrow;
+        }
+      }
+
+      if (pos == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not determine current location.')),
+          );
+        }
+        return;
+      }
+
       if (!mounted) {
         return;
       }
       setState(() {
-        locationText = '${pos.latitude},${pos.longitude}';
+        locationText = '${pos!.latitude},${pos.longitude}';
         locationCtrl.text = locationText;
       });
     } catch (e) {
@@ -595,7 +666,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   scrollDirection: Axis.horizontal,
                   children: [
                     GestureDetector(
-                      onTap: _pickImages,
+                      onTap: _showImageSourceActionSheet,
                       child: Container(
                         width: 100,
                         margin: const EdgeInsets.only(right: 8),
