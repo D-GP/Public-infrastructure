@@ -1727,7 +1727,7 @@ def admin_get_complaints():
         # be registered with lowercase ('pwd'), we'll fetch all and filter in Python
         # to ensure case-insensitive matching.
         query = db.collection('requests').stream()
-        
+        print(f"DEBUG admin_get_complaints - Dept: {department}, StatusFilter: {status_filter}")
         complaints = []
         for doc in query:
             complaint_data = doc.to_dict()
@@ -1864,6 +1864,7 @@ def admin_get_analytics():
         department = current_user.get('department')
         
         # Get all complaints for department (case-insensitive)
+        print(f"DEBUG admin_get_analytics - Dept: {department}")
         complaints = []
         for doc in db.collection('requests').stream():
             doc_data = doc.to_dict()
