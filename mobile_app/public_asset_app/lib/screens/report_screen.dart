@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
@@ -173,16 +174,36 @@ class _ReportScreenState extends State<ReportScreen> {
         return;
       }
 
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
+      Position? pos;
+      try {
+        pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 15),
+          ),
+        );
+      } catch (e) {
+        if (e is TimeoutException) {
+          pos = await Geolocator.getLastKnownPosition();
+        } else {
+          rethrow;
+        }
+      }
+
+      if (pos == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not determine current location.')),
+          );
+        }
+        return;
+      }
+
       if (!mounted) {
         return;
       }
       setState(() {
-        locationText = '${pos.latitude},${pos.longitude}';
+        locationText = '${pos!.latitude},${pos.longitude}';
         locationCtrl.text = locationText;
       });
     } catch (e) {
