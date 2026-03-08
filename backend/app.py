@@ -8,7 +8,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 from dotenv import load_dotenv
 from dotenv import load_dotenv
-from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
 import bcrypt
 from functools import wraps
 import threading
@@ -968,13 +968,16 @@ def admin_login_api():
             print(f"✓ Admin logged in via Firebase: {email}")
             
             # Create JWT access token containing admin identity
-            access_token = create_access_token(identity={
-                'email': admin_data.get('email'),
-                'admin_id': doc_id,
-                'uid': uid,
-                'department': admin_data.get('department'),
-                'name': admin_data.get('name')
-            })
+            access_token = create_access_token(
+                identity=doc_id,
+                additional_claims={
+                    'email': admin_data.get('email'),
+                    'admin_id': doc_id,
+                    'uid': uid,
+                    'department': admin_data.get('department'),
+                    'name': admin_data.get('name')
+                }
+            )
             
             return jsonify({
                 "msg": "Login Success",
@@ -1719,7 +1722,7 @@ def start_reminder_worker():
 def admin_get_complaints():
     """Get all complaints for admin's department"""
     try:
-        current_user = get_jwt_identity()
+        current_user = get_jwt()
         department = current_user.get('department')
         status_filter = request.args.get('status', None)
         
@@ -1860,7 +1863,7 @@ def admin_update_complaint_status(complaint_id):
 def admin_get_analytics():
     """Get analytics and statistics for admin's department"""
     try:
-        current_user = get_jwt_identity()
+        current_user = get_jwt()
         department = current_user.get('department')
         
         # Get all complaints for department (case-insensitive)
