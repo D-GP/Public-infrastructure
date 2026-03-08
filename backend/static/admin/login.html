@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Portal - Login | Public Assets</title>
     <link rel="stylesheet" href="/static/admin/admin-styles.css">
 </head>
+
 <body class="auth-body">
     <div class="auth-container">
         <div class="auth-box">
@@ -37,15 +39,17 @@
             </form>
 
             <div class="auth-footer">
-                <p>New here? <a href="static/admin/register">Create an admin account</a></p>
-                <p>Having trouble logging in? <a href="#" onclick="alert('Contact your administrator')">Contact Support</a></p>
+                <p>New here? <a href="/admin/register">Create an admin account</a></p>
+                <p>Having trouble logging in? <a href="#" onclick="alert('Contact your administrator')">Contact
+                        Support</a></p>
             </div>
         </div>
 
         <div class="auth-sidebar">
             <div class="sidebar-content">
                 <h3>Welcome Back!</h3>
-                <p>Manage complaints and track resolution status for your department with real-time analytics and automated reminders.</p>
+                <p>Manage complaints and track resolution status for your department with real-time analytics and
+                    automated reminders.</p>
                 <ul class="feature-list">
                     <li>✓ Department-specific dashboard</li>
                     <li>✓ Real-time complaint tracking</li>
@@ -58,44 +62,96 @@
     </div>
 
     <script src="/static/admin/admin-scripts.js"></script>
+
+    <!-- Firebase SDK (Compat version) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
     <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyD3XJx5ywt6g7VHB2rGa9DC4da7PnCVYq8",
+            authDomain: "smart-public-34653.firebaseapp.com",
+            projectId: "smart-public-34653",
+            storageBucket: "smart-public-34653.firebasestorage.app",
+            messagingSenderId: "547819912434",
+            appId: "1:547819912434:web:8cdbe981b8f34b811e646b",
+            measurementId: "G-GGRC0Z2WEC"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        const btnSubmit = document.querySelector('.btn-primary');
+
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            
+
+            btnSubmit.disabled = true;
+            btnSubmit.querySelector('.btn-text').textContent = 'Authenticating...';
+
             try {
+                // 1. Sign in with Firebase
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+
+                // 2. Ensure Email is Verified
+                if (!user.emailVerified) {
+                    showMessage('Please verify your email before logging in. Check your inbox.', 'error');
+                    auth.signOut();
+                    btnSubmit.disabled = false;
+                    btnSubmit.querySelector('.btn-text').textContent = 'Login';
+                    return;
+                }
+
+                // 3. Get ID Token
+                const idToken = await user.getIdToken(true);
+
+                // 4. Send to Backend to exchange for local session/JWT
                 const response = await fetch('/api/admin/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({ idToken: idToken })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
-                    // Store token and admin info (store full admin object expected by scripts)
+                    // Store token and admin info
                     localStorage.setItem('adminToken', data.token);
                     localStorage.setItem('admin', JSON.stringify(data.user));
                     localStorage.setItem('adminEmail', data.user.email || email);
-                    
+
                     showMessage('Login successful! Redirecting to dashboard...', 'success');
                     setTimeout(() => {
                         window.location.href = '/admin/dashboard';
                     }, 800);
                 } else {
-                    showMessage(data.msg || 'Login failed', 'error');
+                    showMessage(data.msg || 'Server login failed', 'error');
+                    auth.signOut();
+                    btnSubmit.disabled = false;
+                    btnSubmit.querySelector('.btn-text').textContent = 'Login';
                 }
             } catch (error) {
-                showMessage('Error: ' + error.message, 'error');
+                console.error("Login Error:", error);
+                let msg = error.message;
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                    msg = 'Invalid email or password.';
+                }
+                showMessage(msg, 'error');
+                btnSubmit.disabled = false;
+                btnSubmit.querySelector('.btn-text').textContent = 'Login';
             }
         });
 
         function showMessage(msg, type) {
             const msgElement = document.getElementById('formMessage');
+            msgElement.style.display = 'block';
             msgElement.textContent = msg;
             msgElement.className = 'form-message ' + type;
         }
     </script>
 </body>
+
 </html>

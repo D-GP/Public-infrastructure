@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Complaints Management | Public Assets Admin</title>
     <link rel="stylesheet" href="/static/admin/admin-styles.css">
 </head>
+
 <body>
     <div class="admin-container">
         <!-- Sidebar Navigation -->
@@ -31,6 +33,14 @@
                     <span class="nav-icon">📈</span>
                     <span class="nav-text">Analytics</span>
                 </a>
+                <a href="/admin/notifications" class="nav-link" data-page="notifications">
+                    <span class="nav-icon">🔔</span>
+                    <span class="nav-text">Notifications</span>
+                </a>
+                <a href="/admin/profile" class="nav-link" data-page="profile">
+                    <span class="nav-icon">👤</span>
+                    <span class="nav-text">Profile</span>
+                </a>
                 <a href="#" class="nav-link" onclick="adminLogout()">
                     <span class="nav-icon">🚪</span>
                     <span class="nav-text">Logout</span>
@@ -40,6 +50,11 @@
             <div class="sidebar-footer">
                 <div class="admin-profile" id="adminProfile">
                     <div class="admin-avatar">👤</div>
+                    <div class="notification-bell" onclick="window.location.href='/admin/notifications'"
+                        style="cursor: pointer;">
+                        <button class="btn-icon">🔔</button>
+                        <span class="badge" id="navNotificationBadge" style="display:none;">0</span>
+                    </div>
                     <div class="admin-info">
                         <p class="admin-name">Admin</p>
                         <p class="admin-dept">Department</p>
@@ -170,7 +185,8 @@
                             <option value="resolved">Resolved</option>
                             <option value="rejected">Rejected</option>
                         </select>
-                        <textarea id="updateNotes" placeholder="Add notes about this update..." style="margin-top: 10px;"></textarea>
+                        <textarea id="updateNotes" placeholder="Add notes about this update..."
+                            style="margin-top: 10px;"></textarea>
                         <button type="submit" class="btn btn-success">Update Status</button>
                     </form>
                 </div>
@@ -191,7 +207,7 @@
 
         async function loadComplaints() {
             try {
-                const response = await adminFetch('/admin/complaints', { method: 'GET' });
+                const response = await adminFetch('/api/admin/complaints', { method: 'GET' });
                 if (!response) return;
                 if (!response.ok) {
                     if (response.status === 401) {
@@ -254,7 +270,7 @@
         async function viewComplaintDetail(complaintId) {
             const token = localStorage.getItem('adminToken');
             try {
-                const response = await fetch(`/admin/complaints/${complaintId}`, {
+                const response = await fetch(`/api/admin/complaints/${complaintId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -306,7 +322,7 @@
             const token = localStorage.getItem('adminToken');
 
             try {
-                const response = await fetch(`/admin/complaints/${complaintId}/status`, {
+                const response = await fetch(`/api/admin/complaints/${complaintId}/status`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -365,7 +381,7 @@
         // Search functionality
         document.getElementById('searchInput').addEventListener('keyup', (e) => {
             const searchTerm = e.target.value.toLowerCase();
-            filteredComplaints = allComplaints.filter(complaint => 
+            filteredComplaints = allComplaints.filter(complaint =>
                 complaint.title.toLowerCase().includes(searchTerm) ||
                 complaint.description.toLowerCase().includes(searchTerm) ||
                 complaint.reporter_name?.toLowerCase().includes(searchTerm)
@@ -382,4 +398,5 @@
         window.addEventListener('DOMContentLoaded', initComplaints);
     </script>
 </body>
+
 </html>

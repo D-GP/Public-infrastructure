@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications | Public Assets Admin</title>
+    <link rel="stylesheet" href="/static/admin/admin-styles.css">
+    <style>
+        .notifications-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 800px;
+            margin: 0 auto;
+            margin-top: 20px;
+        }
+
+        .notification-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid #2563eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .notification-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .notification-card.unread {
+            background: #eff6ff;
+            border-left-width: 6px;
+        }
+
+        .notification-card.high-priority {
+            border-left-color: #ef4444;
+        }
+
+        .notification-content h4 {
+            margin: 0 0 5px 0;
+            color: #1f2937;
+            font-size: 1.1em;
+        }
+
+        .notification-content p {
+            margin: 0;
+            color: #4b5563;
+            font-size: 0.95em;
+        }
+
+        .notification-meta {
+            text-align: right;
+            color: #6b7280;
+            font-size: 0.85em;
+            flex-shrink: 0;
+            margin-left: 15px;
+        }
+
+        .notification-meta .time {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .btn-view {
+            background: none;
+            border: 1px solid #e5e7eb;
+            padding: 5px 10px;
+            border-radius: 4px;
+            color: #2563eb;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+
+        .btn-view:hover {
+            background: #f3f4f6;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+            background: white;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="admin-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-box">
+                    <span class="logo">🏛️</span>
+                    <span class="logo-text">Public Assets</span>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/admin/dashboard" class="nav-link" data-page="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/admin/complaints" class="nav-link" data-page="complaints">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Complaints</span>
+                </a>
+                <a href="/admin/analytics" class="nav-link" data-page="analytics">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Analytics</span>
+                </a>
+                <a href="/admin/notifications" class="nav-link active" data-page="notifications">
+                    <span class="nav-icon">🔔</span>
+                    <span class="nav-text">Notifications</span>
+                </a>
+                <a href="/admin/profile" class="nav-link" data-page="profile">
+                    <span class="nav-icon">👤</span>
+                    <span class="nav-text">Profile</span>
+                </a>
+                <a href="#" class="nav-link" onclick="adminLogout()">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="admin-profile" id="adminProfile">
+                    <div class="admin-avatar">👤</div>
+                    <div class="notification-bell" onclick="window.location.href='/admin/notifications'"
+                        style="cursor: pointer;">
+                        <button class="btn-icon">🔔</button>
+                        <span class="badge" id="navNotificationBadge" style="display:none;">0</span>
+                    </div>
+                    <div class="admin-info">
+                        <p class="admin-name">Admin</p>
+                        <p class="admin-dept">Department</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-title">
+                    <h1>Alerts & Notifications</h1>
+                    <p>Timeline of recent public reports filed to your department</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-icon" onclick="loadNotifications()">🔄</button>
+                    <div class="notification-bell" onclick="window.location.href='/admin/notifications'"
+                        style="cursor: pointer;">
+                        <button class="btn-icon">🔔</button>
+                        <span class="badge" id="headerNotificationBadge" style="display:none;">0</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <div id="loadingIndicator" style="text-align: center; padding: 40px; color: #6b7280;">
+                    Loading recent reports...
+                </div>
+
+                <div id="notificationsContainer" class="notifications-list" style="display: none;">
+                    <!-- Javascript will inject notification cards here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase Validation and Utility -->
+    <script src="/static/admin/admin-scripts.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAdminAuth();
+
+            const admin = JSON.parse(localStorage.getItem('admin') || '{}');
+            document.querySelector('.admin-name').textContent = admin.name || 'Admin';
+            document.querySelector('.admin-dept').textContent = admin.department || 'Department';
+
+            loadNotifications();
+        });
+
+        async function loadNotifications() {
+            const container = document.getElementById('notificationsContainer');
+            const loader = document.getElementById('loadingIndicator');
+
+            try {
+                // We use the existing complaints API which fetches ALL complaints for the department
+                const token = localStorage.getItem('adminToken');
+                const response = await fetch('/api/admin/complaints', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (!response.ok) throw new Error('Failed to fetch data');
+
+                const data = await response.json();
+                const complaints = data.complaints || [];
+
+                loader.style.display = 'none';
+                container.style.display = 'flex';
+
+                if (complaints.length === 0) {
+                    container.innerHTML = `<div class="empty-state"><h3>No alerts yet</h3><p>Your department hasn't received any reports.</p></div>`;
+                    return;
+                }
+
+                // Sort complaints by newest first based on createdAt
+                complaints.sort((a, b) => {
+                    const dateA = a.createdAt?.seconds || Date.parse(a.createdAt) / 1000 || 0;
+                    const dateB = b.createdAt?.seconds || Date.parse(b.createdAt) / 1000 || 0;
+                    return dateB - dateA;
+                });
+
+                // Display up to 20 most recent
+                container.innerHTML = complaints.slice(0, 20).map(c => {
+                    const isHigh = c.priority === 'high';
+                    const isNew = c.status === 'pending';
+                    const titleText = c.title || 'Untitled Report';
+                    const descText = truncateText(c.description || 'No description provided.', 80);
+                    const timeString = timeAgo(c.createdAt);
+
+                    return `
+                        <div class="notification-card ${isHigh ? 'high-priority' : ''} ${isNew ? 'unread' : ''}">
+                            <div class="notification-content">
+                                <h4>
+                                    ${isHigh ? '🚨 ' : ''}
+                                    ${isNew ? '<span style="color: #2563eb;">[NEW]</span> ' : ''}
+                                    ${titleText}
+                                </h4>
+                                <p>${descText}</p>
+                            </div>
+                            <div class="notification-meta">
+                                <span class="time">${timeString}</span>
+                                <button class="btn-view" onclick="window.location.href='/admin/complaints'">View in List</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error fetching notifications:', error);
+                loader.textContent = 'Error loading reports. Please try again.';
+            }
+        }
+    </script>
+</body>
+
+</html>

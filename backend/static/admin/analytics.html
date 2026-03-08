@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="/static/admin/admin-styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
     <div class="admin-container">
         <!-- Sidebar Navigation -->
@@ -31,6 +33,14 @@
                 <a href="/admin/analytics" class="nav-link active" data-page="analytics">
                     <span class="nav-icon">📈</span>
                     <span class="nav-text">Analytics</span>
+                </a>
+                <a href="/admin/notifications" class="nav-link" data-page="notifications">
+                    <span class="nav-icon">🔔</span>
+                    <span class="nav-text">Notifications</span>
+                </a>
+                <a href="/admin/profile" class="nav-link" data-page="profile">
+                    <span class="nav-icon">👤</span>
+                    <span class="nav-text">Profile</span>
                 </a>
                 <a href="#" class="nav-link" onclick="adminLogout()">
                     <span class="nav-icon">🚪</span>
@@ -60,6 +70,11 @@
                 <div class="header-actions">
                     <button class="btn btn-outline" onclick="exportReport()">📥 Export Report</button>
                     <button class="btn-icon" onclick="refreshAnalytics()">🔄</button>
+                    <div class="notification-bell" onclick="window.location.href='/admin/notifications'"
+                        style="cursor: pointer;">
+                        <button class="btn-icon">🔔</button>
+                        <span class="badge" id="navNotificationBadge" style="display:none;">0</span>
+                    </div>
                 </div>
             </header>
 
@@ -134,7 +149,8 @@
                                     <span id="performanceResponse">Excellent</span>
                                 </div>
                                 <div class="progress-bar">
-                                    <div id="progressResponse" class="progress-fill progress-excellent" style="width: 90%"></div>
+                                    <div id="progressResponse" class="progress-fill progress-excellent"
+                                        style="width: 90%"></div>
                                 </div>
                             </div>
                             <div class="performance-item">
@@ -143,7 +159,8 @@
                                     <span id="performanceResolution">Good</span>
                                 </div>
                                 <div class="progress-bar">
-                                    <div id="progressResolution" class="progress-fill progress-good" style="width: 75%"></div>
+                                    <div id="progressResolution" class="progress-fill progress-good" style="width: 75%">
+                                    </div>
                                 </div>
                             </div>
                             <div class="performance-item">
@@ -152,7 +169,8 @@
                                     <span id="performanceSatisfaction">Good</span>
                                 </div>
                                 <div class="progress-bar">
-                                    <div id="progressSatisfaction" class="progress-fill progress-good" style="width: 80%"></div>
+                                    <div id="progressSatisfaction" class="progress-fill progress-good"
+                                        style="width: 80%"></div>
                                 </div>
                             </div>
                         </div>
@@ -247,7 +265,7 @@
 
         async function loadAnalytics() {
             try {
-                const response = await adminFetch('/admin/analytics', { method: 'GET' });
+                const response = await adminFetch('/api/admin/analytics', { method: 'GET' });
                 if (!response) return;
                 if (!response.ok) {
                     if (response.status === 401) {
@@ -270,7 +288,7 @@
 
             // Update metrics
             document.getElementById('metricTotal').textContent = analytics.total_complaints;
-            const resolutionRate = analytics.total_complaints > 0 
+            const resolutionRate = analytics.total_complaints > 0
                 ? Math.round((analytics.resolved_count / analytics.total_complaints) * 100)
                 : 0;
             document.getElementById('metricResolution').textContent = resolutionRate + '%';
@@ -445,4 +463,5 @@
         window.addEventListener('DOMContentLoaded', initAnalytics);
     </script>
 </body>
+
 </html>

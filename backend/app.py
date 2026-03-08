@@ -727,6 +727,11 @@ def send_otp_email(email, otp):
         print(f"❌ Failed to send OTP email: {str(e)}")
         return False
 
+@app.route('/', methods=['GET'])
+def index():
+    """Serve the main public portal landing page."""
+    return app.send_static_file('index.html')
+
 @app.route('/api/send-otp', methods=['POST'])
 @limiter.limit("5 per minute")
 @handle_errors
@@ -861,47 +866,61 @@ def register():
         return jsonify({"msg": "Registration failed. Please try again later."}), 500
 
 # ADMIN AUTH ENDPOINTS
-@app.route('/api/admin/register', methods=['POST'])
+
+@app.route('/api/admin/setup-profile', methods=['POST'])
 @handle_errors
-def admin_register():
+def admin_setup_profile():
     if db is None:
         return jsonify({"msg": "Database not available"}), 503
 
     data = request.get_json()
+    id_token = data.get('idToken', '').strip()
     name = data.get('name', '').strip()
-    email = data.get('email', '').strip()
-    password = data.get('password', '')
-    department = data.get('department', '')
+    department = data.get('department', '').lower()
+    mobile = data.get('mobile', '').strip()
 
-    if not all([name, email, password, department]):
+    if not all([id_token, name, department, mobile]):
         return jsonify({"msg": "All fields are required"}), 400
 
-    if not validate_email(email):
-        return jsonify({"msg": "Invalid email format"}), 400
-    
-    if len(password) < 6:
-        return jsonify({"msg": "Password must be at least 6 characters"}), 400
+    try:
+        # 1. Verify token
+        decoded_token = auth.verify_id_token(id_token)
+        uid = decoded_token.get('uid')
+        email = decoded_token.get('email', '').lower()
+        email_verified = decoded_token.get('email_verified', False)
 
-    # Check existing admin
-    existing = db.collection('admins').where('email', '==', email).stream()
-    if any(existing):
-        return jsonify({"msg": "Admin email already exists"}), 400
+        if not email:
+            return jsonify({"msg": "Token does not contain an email address"}), 400
 
-    # hash the password before storing
-    hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-    admin_data = {
-        'name': name,
-        'email': email,
-        'password': hashed,
-        'department': department,
-        'role': 'admin',
-        'createdAt': firestore.SERVER_TIMESTAMP
-    }
+        if not email_verified:
+            return jsonify({"msg": "Email address must be verified first"}), 400
 
-    db.collection('admins').add(admin_data)
-    print(f"✓ New admin registered: {email}")
+        # We could also strictly check if phone number matches, but Firebase Auth ensures that the user who owns this ID token has this phone number linked if we reached this point successfully.
 
-    return jsonify({"msg": "Admin registered successfully"}), 201
+        # 2. Check if admin already exists
+        existing_admins = list(db.collection('admins').where('email', '==', email).limit(1).stream())
+        if existing_admins:
+            return jsonify({"msg": "Admin email already registered"}), 400
+
+        # 3. Create admin record in Firestore
+        admin_data = {
+            'uid': uid, # Link to Firebase Auth User
+            'email': email,
+            'name': name,
+            'mobile': mobile,
+            'department': department,
+            'role': 'department_admin', # Or 'admin' depending on your role schema
+            'createdAt': firestore.SERVER_TIMESTAMP
+        }
+
+        db.collection('admins').document(uid).set(admin_data)
+        print(f"✓ New admin profile created from Firebase Auth: {email}")
+
+        return jsonify({"msg": "Admin profile setup successfully"}), 201
+
+    except Exception as e:
+        print(f"Profile setup error: {str(e)}")
+        return jsonify({"msg": "Invalid or expired token, or other verification error."}), 401
 
 @app.route('/api/admin/login', methods=['POST'])
 @handle_errors
@@ -910,58 +929,72 @@ def admin_login_api():
         return jsonify({"msg": "Database not available"}), 503
 
     data = request.get_json()
-    email = data.get('email', '').strip()
-    password = data.get('password', '')
+    id_token = data.get('idToken', '').strip()
 
-    if not email or not password:
-        return jsonify({"msg": "Email and password required"}), 400
+    if not id_token:
+        # Fallback for old clients (optional, but good for transition)
+        email = data.get('email', '').strip()
+        password = data.get('password', '')
+        if email and password:
+            return jsonify({"msg": "Legacy login disabled. Please use the updated app."}), 400
+        return jsonify({"msg": "Firebase ID Token required"}), 400
 
-    # Query admins collection
-    admins_ref = db.collection('admins').where('email', '==', email).stream()
-    admin_list = list(admins_ref)
+    try:
+        # Verify the Firebase ID token securely
+        decoded_token = auth.verify_id_token(id_token)
+        uid = decoded_token.get('uid')
+        email = decoded_token.get('email', '').lower()
 
-    if admin_list:
-        admin_doc = admin_list[0]
-        admin_data = admin_doc.to_dict()
-        stored_password = admin_data.get('password', '')
+        if not email:
+            return jsonify({"msg": "Email not found in token"}), 400
+
+        # Query admins collection by UID first, then fallback to email (for older auths migrated)
+        admin_doc = db.collection('admins').document(uid).get()
+        admin_data = None
+        doc_id = None
         
-        # Try bcrypt verification first (if it looks like a hash)
-        is_valid = False
-        try:
-            if stored_password.startswith('$2b$') or stored_password.startswith('$2a$') or stored_password.startswith('$2y$'):
-                is_valid = bcrypt.checkpw(password.encode('utf-8'), stored_password.encode('utf-8'))
-            else:
-                # Fallback to plain text comparison
-                is_valid = (password == stored_password)
-        except Exception as hash_err:
-            print(f"Hash verification error: {hash_err}. Trying plain text...")
-            # Fallback to plain text
-            is_valid = (password == stored_password)
-        
-        if is_valid:
-            print(f"✓ Admin logged in: {email}")
+        if admin_doc.exists:
+             admin_data = admin_doc.to_dict()
+             doc_id = admin_doc.id
+        else:
+             # Fallback query by email if registered via legacy system
+             admins_ref = db.collection('admins').where('email', '==', email).stream()
+             admin_list = list(admins_ref)
+             if admin_list:
+                  admin_data = admin_list[0].to_dict()
+                  doc_id = admin_list[0].id
+
+        if admin_data:
+            print(f"✓ Admin logged in via Firebase: {email}")
+            
             # Create JWT access token containing admin identity
             access_token = create_access_token(identity={
                 'email': admin_data.get('email'),
-                'admin_id': admin_doc.id,
+                'admin_id': doc_id,
+                'uid': uid,
                 'department': admin_data.get('department'),
                 'name': admin_data.get('name')
             })
+            
             return jsonify({
                 "msg": "Login Success",
                 "user": {
-                    "id": admin_doc.id,
+                    "id": doc_id,
+                    "uid": uid,
                     "name": admin_data.get('name'),
                     "email": admin_data.get('email'),
                     "department": admin_data.get('department'),
+                    "mobile": admin_data.get('mobile'),
                     "role": "admin"
                 },
                 "token": access_token
             }), 200
         else:
-            return jsonify({"msg": "Invalid credentials"}), 401
-    
-    return jsonify({"msg": "Invalid credentials"}), 401
+            return jsonify({"msg": "Admin record not found. Please register first."}), 401
+            
+    except Exception as e:
+        print(f"Token verification error: {str(e)}")
+        return jsonify({"msg": "Invalid or expired token"}), 401
 
 # CUSTOMER LOGIN ENDPOINT (Keep for mobile app)
 @app.route('/login', methods=['POST'])
@@ -1679,85 +1712,9 @@ def start_reminder_worker():
 
 # ========================= ADMIN PORTAL ENDPOINTS =========================
 
-# Generate and send OTP
-@app.route('/admin/send-otp', methods=['POST'])
-def admin_send_otp():
-    """Send OTP to admin email or mobile. Requires password verification."""
-    try:
-        data = request.get_json()
-        email = data.get('email', '').lower()
-        password = data.get('password', '')
-        mobile = data.get('mobile', '')
-        delivery_method = data.get('method', 'email')  # email or sms
-        
-        if not email or not password:
-            return jsonify({"msg": "Email and password required"}), 400
-        
-        # Check if admin exists and password matches
-        admin_query = db.collection('admins').where('email', '==', email).limit(1).stream()
-        admin_doc = None
-        for doc in admin_query:
-            admin_doc = doc
-            break
-        
-        if not admin_doc:
-            return jsonify({"msg": "Admin not found"}), 404
-        admin_data = admin_doc.to_dict()
-        if admin_data.get('password') != password:
-            return jsonify({"msg": "Invalid credentials"}), 401
-        
-        # Generate OTP
-        otp = str(uuid.uuid4().hex[:6].upper())  # 6-character OTP
-        # expiry stored as UTC-aware datetime to avoid naive/aware mismatches
-        otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=10)
-        
-        # Store OTP in Firestore
-        db.collection('admin_otps').add({
-            'email': email,
-            'otp': otp,
-            'expiry': otp_expiry,
-            'createdAt': firestore.SERVER_TIMESTAMP,
-            'verified': False
-        })
-        
-        # Send OTP via email
-        if delivery_method == 'email':
-            try:
-                admin_name = admin_data.get('name', 'Admin')
-                msg = Message(
-                    subject="Your Admin Portal Login OTP",
-                    recipients=[email],
-                    html=f"""
-                    <html>
-                        <body style="font-family: Arial, sans-serif;">
-                            <div style="max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-                                <h2 style="color: #2563EB;">Login Verification Code</h2>
-                                <p>Hi {admin_name},</p>
-                                <p>Your One-Time Password (OTP) for admin portal login is:</p>
-                                <div style="background-color: #f0f0f0; padding: 15px; border-radius: 5px; text-align: center; margin: 20px 0;">
-                                    <h1 style="letter-spacing: 5px; color: #2563EB; margin: 0;">{otp}</h1>
-                                </div>
-                                <p style="color: #666;">This OTP will expire in 10 minutes.</p>
-                                <p style="color: #999; font-size: 12px;">If you didn't request this OTP, please ignore this email.</p>
-                            </div>
-                        </body>
-                    </html>
-                    """
-                )
-                mail.send(msg)
-                return jsonify({"msg": "OTP sent to email", "email": email}), 200
-            except Exception as e:
-                print(f"Email sending error: {str(e)}")
-                return jsonify({"msg": "Failed to send OTP"}), 500
-        
-        return jsonify({"msg": "OTP sent", "delivery": delivery_method}), 200
-    
-    except Exception as e:
-        print(f"Error in send_otp: {str(e)}")
-        return jsonify({"msg": str(e)}), 500
 
 # Get complaints for admin's department
-@app.route('/admin/complaints', methods=['GET'])
+@app.route('/api/admin/complaints', methods=['GET'])
 @jwt_required()
 def admin_get_complaints():
     """Get all complaints for admin's department"""
@@ -1794,7 +1751,7 @@ def admin_get_complaints():
         return jsonify({"msg": str(e)}), 500
 
 # Get single complaint detail
-@app.route('/admin/complaints/<complaint_id>', methods=['GET'])
+@app.route('/api/admin/complaints/<complaint_id>', methods=['GET'])
 @jwt_required()
 def admin_get_complaint_detail(complaint_id):
     """Get detailed info about a specific complaint"""
@@ -1817,7 +1774,7 @@ def admin_get_complaint_detail(complaint_id):
         return jsonify({"msg": str(e)}), 500
 
 # Update complaint status
-@app.route('/admin/complaints/<complaint_id>/status', methods=['PUT'])
+@app.route('/api/admin/complaints/<complaint_id>/status', methods=['PUT'])
 @jwt_required()
 def admin_update_complaint_status(complaint_id):
     """Update complaint status"""
@@ -1830,11 +1787,18 @@ def admin_update_complaint_status(complaint_id):
         if new_status not in valid_statuses:
             return jsonify({"msg": "Invalid status"}), 400
         
+        # Prepare new history entry
+        new_history_entry = {
+            'date': firestore.SERVER_TIMESTAMP,
+            'note': f"Status changed to {new_status.replace('_', ' ').title()}. {notes}"
+        }
+
         # Update complaint
         db.collection('requests').document(complaint_id).update({
             'status': new_status,
             'lastActionDate': firestore.SERVER_TIMESTAMP,
-            'statusNotes': notes
+            'statusNotes': notes,
+            'escalationHistory': firestore.ArrayUnion([new_history_entry])
         })
         
         # Send notification email to reporter
@@ -1857,6 +1821,24 @@ def admin_update_complaint_status(complaint_id):
                     """
                 )
                 mail.send(msg)
+
+            # --- Check for SMS Notification ---
+            user_id = complaint.get('userId')
+            if user_id:
+                user_doc = db.collection('users').document(user_id).get()
+                if user_doc.exists:
+                    user_data = user_doc.to_dict()
+                    phone = user_data.get('phone')
+                    if phone:
+                        try:
+                            from whatsapp_service import send_sms_otp
+                            status_text = new_status.replace('_', ' ').title()
+                            sms_message = f"Smart Public App: Your report '{complaint.get('title')}' status is now {status_text}. "
+                            if notes:
+                                sms_message += f"Admin Note: {notes}"
+                            send_sms_otp(phone, sms_message)
+                        except Exception as sms_err:
+                            print(f"Failed to send SMS to {phone}: {str(sms_err)}")
         
         return jsonify({"msg": "Status updated successfully"}), 200
     
@@ -1865,7 +1847,7 @@ def admin_update_complaint_status(complaint_id):
         return jsonify({"msg": str(e)}), 500
 
 # Get analytics dashboard data
-@app.route('/admin/analytics', methods=['GET'])
+@app.route('/api/admin/analytics', methods=['GET'])
 @jwt_required()
 def admin_get_analytics():
     """Get analytics and statistics for admin's department"""

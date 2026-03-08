@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Profile | Public Assets Admin</title>
+    <link rel="stylesheet" href="/static/admin/admin-styles.css">
+</head>
+
+<body>
+    <div class="admin-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-box">
+                    <span class="logo">🏛️</span>
+                    <span class="logo-text">Public Assets</span>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/admin/dashboard" class="nav-link" data-page="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/admin/complaints" class="nav-link" data-page="complaints">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Complaints</span>
+                </a>
+                <a href="/admin/analytics" class="nav-link" data-page="analytics">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Analytics</span>
+                </a>
+                <a href="/admin/notifications" class="nav-link" data-page="notifications">
+                    <span class="nav-icon">🔔</span>
+                    <span class="nav-text">Notifications</span>
+                </a>
+                <a href="/admin/profile" class="nav-link active" data-page="profile">
+                    <span class="nav-icon">👤</span>
+                    <span class="nav-text">Profile</span>
+                </a>
+                <a href="#" class="nav-link" onclick="adminLogout()">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="admin-profile" id="adminProfile">
+                    <div class="admin-avatar">👤</div>
+                    <div class="notification-bell" onclick="window.location.href='/admin/notifications'"
+                        style="cursor: pointer;">
+                        <button class="btn-icon">🔔</button>
+                        <span class="badge" id="navNotificationBadge" style="display:none;">0</span>
+                    </div>
+                    <div class="admin-info">
+                        <p class="admin-name">Admin</p>
+                        <p class="admin-dept">Department</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-title">
+                    <h1>My Profile</h1>
+                    <p>Manage your administrative account details</p>
+                </div>
+                <div class="header-actions">
+                    <div class="notification-bell" onclick="window.location.href='/admin/notifications'"
+                        style="cursor: pointer;">
+                        <button class="btn-icon">🔔</button>
+                        <span class="badge" id="headerNotificationBadge" style="display:none;">0</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <div class="profile-card"
+                    style="background: white; border-radius: 8px; padding: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 600px; margin: 0 auto; margin-top: 40px;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <div
+                            style="width: 100px; height: 100px; background-color: #2563eb; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto 15px auto;">
+                            👤
+                        </div>
+                        <h2 id="profileNameDisplay" style="margin: 0; color: #333;">Loading...</h2>
+                        <p id="profileRoleDisplay" style="color: #6b7280; margin-top: 5px;">Administrator</p>
+                    </div>
+
+                    <div style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                        <div class="info-group" style="margin-bottom: 20px;">
+                            <label
+                                style="display: block; color: #6b7280; font-size: 0.9em; margin-bottom: 5px;">Department
+                                Office</label>
+                            <p id="profileDeptDisplay"
+                                style="margin: 0; font-size: 1.1em; font-weight: 500; text-transform: uppercase;">-</p>
+                        </div>
+                        <div class="info-group" style="margin-bottom: 20px;">
+                            <label
+                                style="display: block; color: #6b7280; font-size: 0.9em; margin-bottom: 5px;">Official
+                                Email Address</label>
+                            <p id="profileEmailDisplay" style="margin: 0; font-size: 1.1em; font-weight: 500;">-</p>
+                        </div>
+                        <div class="info-group" style="margin-bottom: 20px;">
+                            <label
+                                style="display: block; color: #6b7280; font-size: 0.9em; margin-bottom: 5px;">Registered
+                                Mobile Number</label>
+                            <p id="profileMobileDisplay" style="margin: 0; font-size: 1.1em; font-weight: 500;">-</p>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 30px;">
+                        <button class="btn btn-outline" onclick="adminLogout()" style="width: 100%;">Sign Out
+                            completely</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase Validation and Utility -->
+    <script src="/static/admin/admin-scripts.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAdminAuth();
+
+            const admin = JSON.parse(localStorage.getItem('admin') || '{}');
+            const adminEmail = localStorage.getItem('adminEmail') || 'N/A';
+
+            // Sidebar
+            document.querySelector('.admin-name').textContent = admin.name || 'Admin';
+            document.querySelector('.admin-dept').textContent = admin.department || 'Department';
+
+            // Main Profile Card
+            document.getElementById('profileNameDisplay').textContent = admin.name || 'Administrator';
+            document.getElementById('profileDeptDisplay').textContent = (admin.department || 'Not Provided') + ' Department';
+            document.getElementById('profileEmailDisplay').textContent = adminEmail;
+
+            // Assuming mobile might be part of token parsing, otherwise fallback
+            document.getElementById('profileMobileDisplay').textContent = admin.mobile || 'Not available in local cache';
+        });
+    </script>
+</body>
+
+</html>
