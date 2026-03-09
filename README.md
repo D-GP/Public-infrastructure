@@ -15,6 +15,8 @@ Built with **Flutter**, the mobile app allows citizens to easily report issues b
 - **Dashboard**: Track the status of submitted reports (Pending, In Progress, Resolved).
 - **Multi-language Support**: Supports English, Malayalam, and Hindi.
 - **Profile & Notifications**: Manage personal details and app notifications.
+- **Custom Branding**: Features a custom logo and matching splash screen for a professional look.
+- **Media Support**: High-resolution image and video evidence attachment.
 
 ### Tech Stack / Dependencies
 - **Framework**: Flutter (Dart)
@@ -48,9 +50,10 @@ Built with **Python Flask**, the backend handles secure data processing, authent
 - **Firebase Integration**: Utilizes Firestore for database management and Firebase Admin for secure operations.
 - **Automated Escalation Matrix**: A scheduled Cron worker scans reports. If ignored for 15 days, local authorities receive an urgent warning. If ignored for 30 days, reports are auto-escalated to State Ministries with full history logging.
 - **Admin Delay System**: Admins can log valid reasons for delay on the dashboard, which pauses the automated escalation timers.
-- **Email Notifications**: Automated email routing to relevant department authorities using `Flask-Mail`.
-- **Media Handling**: Secure upload processing for images and videos.
-- **Authentication**: JWT-based access tokens with `bcrypt` password hashing.
+- **Media Handling**: Secure upload processing for images and videos with thumbnail previews in the admin portal.
+- **Admin Modal Media Gallery**: Large media files are displayed as compact, clickable thumbnails (120x120px) which enlarge on click. Supports inline video play overlays for evidence review.
+- **Intelligent Admin Onboarding**: Citizen accounts can be securely upgraded to Admin accounts during registration if the same credentials are provided.
+- **Authentication**: JWT-based access tokens with `bcrypt` password hashing and Firebase Auth verification.
 - **Anti-Spam & Moderation**: Rate Limiting (`Flask-Limiter`), queue-based admin moderation for new reports, and automatic explicit image detection via `google-cloud-vision` AI.
 
 ### Tech Stack / Dependencies

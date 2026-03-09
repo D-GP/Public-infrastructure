@@ -958,20 +958,24 @@ button {
 }
 
 .image-gallery {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 12px;
 }
 
 .image-item {
-    aspect-ratio: 1;
+    width: 120px;
+    height: 120px;
     border-radius: var(--radius);
     overflow: hidden;
     cursor: pointer;
     transition: var(--transition);
+    position: relative;
+    background-color: var(--lighter);
 }
 
-.image-item img {
+.image-item img,
+.image-item video {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -979,6 +983,23 @@ button {
 
 .image-item:hover {
     transform: scale(1.05);
+}
+
+.video-item .play-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    pointer-events: none;
 }
 
 /* ========================= FORMS ========================= */

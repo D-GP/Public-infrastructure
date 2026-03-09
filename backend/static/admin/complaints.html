@@ -305,19 +305,33 @@
                 document.getElementById('complaintDate').textContent = new Date(complaint.createdAt?.seconds * 1000 || complaint.createdAt).toLocaleString();
                 document.getElementById('complaintReports').textContent = complaint.upvotes || 1;
 
-                // Display images
+                // Display media
                 const gallery = document.getElementById('imageGallery');
                 if (complaint.images && complaint.images.length > 0) {
-                    gallery.innerHTML = complaint.images.map(img => {
-                        const imgSrc = img.startsWith('/') ? img : '/' + img;
-                        return `
-                        <div class="image-item">
-                            <img src="${imgSrc}" alt="Complaint image" onclick="expandImage('${imgSrc}')">
-                        </div>
-                        `;
+                    gallery.innerHTML = complaint.images.map(mediaPath => {
+                        const mediaSrc = mediaPath.startsWith('/') ? mediaPath : '/' + mediaPath;
+                        
+                        // Check if it's a video file based on extension
+                        const extension = mediaSrc.split('.').pop().toLowerCase();
+                        const isVideo = ['mp4', 'webm', 'ogg', 'mov'].includes(extension);
+                        
+                        if (isVideo) {
+                            return `
+                            <div class="image-item video-item" onclick="expandMedia('${mediaSrc}', true)">
+                                <video src="${mediaSrc}#t=0.1" preload="metadata"></video>
+                                <div class="play-overlay">▶</div>
+                            </div>
+                            `;
+                        } else {
+                            return `
+                            <div class="image-item" onclick="expandMedia('${mediaSrc}', false)">
+                                <img src="${mediaSrc}" alt="Complaint image">
+                            </div>
+                            `;
+                        }
                     }).join('');
                 } else {
-                    gallery.innerHTML = '<p style="color: #999;">No images attached</p>';
+                    gallery.innerHTML = '<p style="color: #999;">No media attached</p>';
                 }
 
                 // Store current complaint ID for update
@@ -401,12 +415,16 @@
             }
         });
 
-        function expandImage(imageSrc) {
-            const img = new Image();
-            img.src = imageSrc;
-            img.style.maxWidth = '100%';
-            img.style.maxHeight = '600px';
-            window.open(imageSrc, '_blank');
+        function expandMedia(mediaSrc, isVideo) {
+            if (isVideo) {
+                window.open(mediaSrc, '_blank');
+            } else {
+                const img = new Image();
+                img.src = mediaSrc;
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '600px';
+                window.open(mediaSrc, '_blank');
+            }
         }
 
         function applyFilters() {
