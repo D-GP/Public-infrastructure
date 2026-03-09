@@ -168,10 +168,34 @@
                 verificationPanel.classList.remove('hidden');
 
             } catch (error) {
-                console.error("Firebase Registration Error:", error);
-                showMessage('registerMessage', error.message || 'Registration failed.');
-                btnRegister.disabled = false;
-                btnRegister.querySelector('.btn-text').textContent = 'Register Account';
+                if (error.code === 'auth/email-already-in-use') {
+                    console.log("Email already in use. Attempting to sign in and upgrade account to admin...");
+                    try {
+                        // Attempt Sign-in
+                        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                        currentUser = userCredential.user;
+                        
+                        // Send Email Verification if not verified
+                        if (!currentUser.emailVerified) {
+                            await currentUser.sendEmailVerification();
+                        }
+                        
+                        // Switch UI
+                        registerForm.classList.add('hidden');
+                        verificationPanel.classList.remove('hidden');
+                        showMessage('verifyMessage', 'Account found! Please verify your email to finish setting up your Admin profile.', false);
+                    } catch (signInError) {
+                        console.error("Sign-in error for existing user:", signInError);
+                        showMessage('registerMessage', 'This email is already registered, but the password was incorrect. Please use your existing password, or login instead.');
+                        btnRegister.disabled = false;
+                        btnRegister.querySelector('.btn-text').textContent = 'Register Account';
+                    }
+                } else {
+                    console.error("Firebase Registration Error:", error);
+                    showMessage('registerMessage', error.message || 'Registration failed.');
+                    btnRegister.disabled = false;
+                    btnRegister.querySelector('.btn-text').textContent = 'Register Account';
+                }
             }
         });
 
