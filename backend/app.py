@@ -1571,137 +1571,138 @@ def uploaded_file(filename):
 
 def reminder_worker_loop():
     """Background loop that checks for pending reports and emails authorities if overdue."""
-    check_interval = int(os.getenv('REMINDER_CHECK_SECONDS', 3600))
-    reminder_hours = int(os.getenv('REMINDER_INTERVAL_HOURS', 24))
-    repeat_hours = int(os.getenv('REMINDER_REPEAT_HOURS', 24))
+    with app.app_context():
+        check_interval = int(os.getenv('REMINDER_CHECK_SECONDS', 3600))
+        reminder_hours = int(os.getenv('REMINDER_INTERVAL_HOURS', 24))
+        repeat_hours = int(os.getenv('REMINDER_REPEAT_HOURS', 24))
 
-    print(f"🔁 Reminder worker started: checking every {check_interval}s for reports older than {reminder_hours}h")
+        print(f"🔁 Reminder worker started: checking every {check_interval}s for reports older than {reminder_hours}h")
 
-    while True:
-        try:
-            now = datetime.now(timezone.utc)
-            cutoff = now - timedelta(hours=reminder_hours)
+        while True:
+            try:
+                now = datetime.now(timezone.utc)
+                cutoff = now - timedelta(hours=reminder_hours)
 
-            docs = db.collection('requests').where(filter=firestore.FieldFilter('status', '==', 'pending')).stream()
-            for doc in docs:
-                data = doc.to_dict() or {}
-                created = data.get('createdAt')
-                last_rem = data.get('lastReminderAt')
+                docs = db.collection('requests').where(filter=firestore.FieldFilter('status', '==', 'pending')).stream()
+                for doc in docs:
+                    data = doc.to_dict() or {}
+                    created = data.get('createdAt')
+                    last_rem = data.get('lastReminderAt')
 
-                # Normalize created to datetime
-                if hasattr(created, 'ToDatetime'):
-                    created_dt = created.ToDatetime()
-                elif isinstance(created, datetime):
-                    created_dt = created
-                else:
-                    created_dt = None
-
-                send_reminder = False
-                if created_dt and created_dt < cutoff:
-                    if not last_rem:
-                        send_reminder = True
+                    # Normalize created to datetime
+                    if hasattr(created, 'ToDatetime'):
+                        created_dt = created.ToDatetime()
+                    elif isinstance(created, datetime):
+                        created_dt = created
                     else:
-                        # last_rem may be stored as datetime-like
-                        if hasattr(last_rem, 'ToDatetime'):
-                            last_dt = last_rem.ToDatetime()
-                        elif isinstance(last_rem, datetime):
-                            last_dt = last_rem
-                        else:
-                            last_dt = None
+                        created_dt = None
 
-                        if not last_dt or (now - last_dt) > timedelta(hours=repeat_hours):
+                    send_reminder = False
+                    if created_dt and created_dt < cutoff:
+                        if not last_rem:
                             send_reminder = True
+                        else:
+                            # last_rem may be stored as datetime-like
+                            if hasattr(last_rem, 'ToDatetime'):
+                                last_dt = last_rem.ToDatetime()
+                            elif isinstance(last_rem, datetime):
+                                last_dt = last_rem
+                            else:
+                                last_dt = None
 
-                if send_reminder:
-                    try:
-                        report = data.copy()
-                        report['id'] = doc.id
-                        send_report_email_to_authorities(report)
-                        db.collection('requests').document(doc.id).update({'lastReminderAt': firestore.SERVER_TIMESTAMP})
-                        print(f"🔔 Reminder sent for request: {doc.id}")
-                    except Exception as e:
-                        print(f"❌ Failed to send reminder for {doc.id}: {str(e)}")
-        except Exception as e:
-            print(f"Reminder worker error: {str(e)}")
+                            if not last_dt or (now - last_dt) > timedelta(hours=repeat_hours):
+                                send_reminder = True
+
+                    if send_reminder:
+                        try:
+                            report = data.copy()
+                            report['id'] = doc.id
+                            send_report_email_to_authorities(report)
+                            db.collection('requests').document(doc.id).update({'lastReminderAt': firestore.SERVER_TIMESTAMP})
+                            print(f"🔔 Reminder sent for request: {doc.id}")
+                        except Exception as e:
+                            print(f"❌ Failed to send reminder for {doc.id}: {str(e)}")
+            except Exception as e:
+                print(f"Reminder worker error: {str(e)}")
 
 
-        # ---- ESCALATION LOGIC CHECK ----
-        try:
-            now = datetime.now(timezone.utc)
-            # Use real days or debug minutes based on environment switch
-            is_debug = os.getenv('ESCALATION_DEBUG', 'false').lower() == 'true'
-            cool_off_delta = timedelta(minutes=1) if is_debug else timedelta(days=15)
-            escalate_interval = timedelta(minutes=2) if is_debug else timedelta(days=15)
-            
-            pending_docs = db.collection('requests').where(filter=firestore.FieldFilter('status', 'in', ['pending', 'in_progress'])).stream()
-            
-            for doc in pending_docs:
-                data = doc.to_dict() or {}
-                level = data.get('escalationLevel', 0)
-                is_cool = data.get('isCoolOffPeriod', False)
-                last_action = data.get('lastActionDate')
+            # ---- ESCALATION LOGIC CHECK ----
+            try:
+                now = datetime.now(timezone.utc)
+                # Use real days or debug minutes based on environment switch
+                is_debug = os.getenv('ESCALATION_DEBUG', 'false').lower() == 'true'
+                cool_off_delta = timedelta(minutes=1) if is_debug else timedelta(days=15)
+                escalate_interval = timedelta(minutes=2) if is_debug else timedelta(days=15)
                 
-                # We escalate up to level 3 (Ministry)
-                if level >= 3:
-                    continue
+                pending_docs = db.collection('requests').where(filter=firestore.FieldFilter('status', 'in', ['pending', 'in_progress'])).stream()
+                
+                for doc in pending_docs:
+                    data = doc.to_dict() or {}
+                    level = data.get('escalationLevel', 0)
+                    is_cool = data.get('isCoolOffPeriod', False)
+                    last_action = data.get('lastActionDate')
                     
-                if last_action:
-                    if hasattr(last_action, 'ToDatetime'):
-                        la_dt = last_action.ToDatetime().replace(tzinfo=timezone.utc)
-                    elif isinstance(last_action, datetime):
-                        la_dt = last_action.replace(tzinfo=timezone.utc)
-                    else:
+                    # We escalate up to level 3 (Ministry)
+                    if level >= 3:
                         continue
                         
-                    time_elapsed = now - la_dt
-                    
-                    doc_ref = db.collection('requests').document(doc.id)
-                    history_list = data.get('escalationHistory', [])
-                    
-                    # For level 0, it takes 30 days total to escalate to level 1. 
-                    # For level 1 and 2, it takes 15 days to escalate further.
-                    required_delta = escalate_interval if level > 0 else (escalate_interval * 2)
-
-                    # 1. Check Escalation Trigger
-                    if time_elapsed > required_delta:
-                        next_level = level + 1
-                        print(f"🚨 ESCALATING Report {doc.id} to Level {next_level}!")
+                    if last_action:
+                        if hasattr(last_action, 'ToDatetime'):
+                            la_dt = last_action.ToDatetime().replace(tzinfo=timezone.utc)
+                        elif isinstance(last_action, datetime):
+                            la_dt = last_action.replace(tzinfo=timezone.utc)
+                        else:
+                            continue
+                            
+                        time_elapsed = now - la_dt
                         
-                        level_names = {1: "Taluk Authority", 2: "District Collector", 3: "State Ministry"}
-                        tier_name = level_names.get(next_level, "Higher Authority")
-
-                        history_list.append({
-                            'date': firestore.SERVER_TIMESTAMP,
-                            'note': f'Lower tier failed to respond within timeframe. Escalated to {tier_name}.'
-                        })
+                        doc_ref = db.collection('requests').document(doc.id)
+                        history_list = data.get('escalationHistory', [])
                         
-                        doc_ref.update({
-                            'escalationLevel': next_level,
-                            'escalationHistory': history_list,
-                            'lastActionDate': firestore.SERVER_TIMESTAMP,
-                            'isCoolOffPeriod': False
-                        })
-                        
-                        # Trigger email
-                        report_copy = data.copy()
-                        report_copy['id'] = doc.id
-                        send_escalation_email(report_copy, escalation_level=next_level)
-                        
-                    # 2. Check Level 0 Warning (15 Days)
-                    elif level == 0 and time_elapsed > cool_off_delta and not is_cool:
-                        print(f"⚠️ Report {doc.id} entered cool-off period. Warning Local Department!")
-                        doc_ref.update({
-                            'isCoolOffPeriod': True
-                        })
-                        # Trigger warning email specifically for cooloff
-                        report_copy = data.copy()
-                        report_copy['id'] = doc.id
-                        send_cooloff_warning_email(report_copy)
+                        # For level 0, it takes 30 days total to escalate to level 1. 
+                        # For level 1 and 2, it takes 15 days to escalate further.
+                        required_delta = escalate_interval if level > 0 else (escalate_interval * 2)
 
-        except Exception as esc_err:
-            print(f"Escalation worker error: {str(esc_err)}")
+                        # 1. Check Escalation Trigger
+                        if time_elapsed > required_delta:
+                            next_level = level + 1
+                            print(f"🚨 ESCALATING Report {doc.id} to Level {next_level}!")
+                            
+                            level_names = {1: "Taluk Authority", 2: "District Collector", 3: "State Ministry"}
+                            tier_name = level_names.get(next_level, "Higher Authority")
 
-        time.sleep(check_interval)
+                            history_list.append({
+                                'date': firestore.SERVER_TIMESTAMP,
+                                'note': f'Lower tier failed to respond within timeframe. Escalated to {tier_name}.'
+                            })
+                            
+                            doc_ref.update({
+                                'escalationLevel': next_level,
+                                'escalationHistory': history_list,
+                                'lastActionDate': firestore.SERVER_TIMESTAMP,
+                                'isCoolOffPeriod': False
+                            })
+                            
+                            # Trigger email
+                            report_copy = data.copy()
+                            report_copy['id'] = doc.id
+                            send_escalation_email(report_copy, escalation_level=next_level)
+                            
+                        # 2. Check Level 0 Warning (15 Days)
+                        elif level == 0 and time_elapsed > cool_off_delta and not is_cool:
+                            print(f"⚠️ Report {doc.id} entered cool-off period. Warning Local Department!")
+                            doc_ref.update({
+                                'isCoolOffPeriod': True
+                            })
+                            # Trigger warning email specifically for cooloff
+                            report_copy = data.copy()
+                            report_copy['id'] = doc.id
+                            send_cooloff_warning_email(report_copy)
+
+            except Exception as esc_err:
+                print(f"Escalation worker error: {str(esc_err)}")
+
+            time.sleep(check_interval)
 
 
 def start_reminder_worker():
